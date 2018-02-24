@@ -5,16 +5,16 @@
 
 '''
 # Markdown export from Bear sqlite database 
-Version 1.3.11, 2018-02-11 at 07:43 EST
+Version 1.3.12, 2018-02-23 at 22:37 EST
 github/rovest, rorves@twitter
 
 See also: bear_import.py for auto import to bear script.
 
 ## Sync external updates:
 First checks for changes in external Markdown files (previously exported from Bear)
-* Replacing text in original note with callback-url replace command   
+* Replacing text in original note with callback-url `/add-text&mode=replace_all` command   
   (Keeping original creation date)
-  If changes in title it will be added just below original title
+  Now using the new mode: `replace_all` to include title.
 * New notes are added to Bear (with x-callback-url command)
 * New notes get tags from sub folder names, or `#.inbox` if root
 * Backing up original note as file to BearSyncBackup folder  
@@ -547,7 +547,7 @@ def update_bear_note(md_text, md_file, ts, ts_last_export):
             # Regular external update
             orig_title = backup_bear_note(uuid)
             # message = '::External update: ' + time_stamp_ts(ts) + '::'   
-            x_replace = 'bear://x-callback-url/add-text?show_window=no&mode=replace&id=' + uuid
+            x_replace = 'bear://x-callback-url/add-text?show_window=no&mode=replace_all&id=' + uuid
             bear_x_callback(x_replace, md_text, '', orig_title)
             # # Trash old original note:
             # x_trash = 'bear://x-callback-url/trash?show_window=no&id=' + uuid
@@ -606,13 +606,15 @@ def bear_x_callback(x_command, md_text, message, orig_title):
         lines = md_text.splitlines()
         lines.insert(1, message)
         md_text = '\n'.join(lines)
-    if orig_title != '':
-        lines = md_text.splitlines()
-        title = re.sub(r'^#+ ', r'', lines[0])
-        if title != orig_title:
-            md_text = '\n'.join(lines)
-        else:
-            md_text = '\n'.join(lines[1:])        
+    ## 2018-02-23 at 22:41: 
+    ## Using new `/add-text` mode: `replace_all` including changes to title.
+    # if orig_title != '':
+    #     lines = md_text.splitlines()
+    #     title = re.sub(r'^#+ ', r'', lines[0])
+    #     if title != orig_title:
+    #         md_text = '\n'.join(lines)
+    #     else:
+    #         md_text = '\n'.join(lines[1:])        
     x_command_text = x_command + '&text=' + urllib.parse.quote(md_text)
     subprocess.call(["open", x_command_text])
     time.sleep(.2)
