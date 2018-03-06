@@ -5,7 +5,7 @@
 
 '''
 # Markdown export from Bear sqlite database 
-Version 1.3.12, 2018-02-23 at 22:37 EST
+Version 1.3.13, 2018-03-06 at 15:32 EST
 github/rovest, rorves@twitter
 
 See also: bear_import.py for auto import to bear script.
@@ -124,6 +124,7 @@ def main():
             copy_bear_images()
         # notify('Export completed')
         write_log(str(note_count) + ' notes exported to: ' + export_path)
+        print(str(note_count) + ' notes exported to: ' + export_path)        
     else:
         print('*** No notes needed exports')
 
@@ -226,8 +227,8 @@ def make_text_bundle(md_text, filepath, mod_dt):
 
 def sub_path_from_tag(temp_path, filename, md_text):
     # Get tags in note:
-    pattern1 = r'(?<!\S)\#([.\w\/\-]+)[ \n]?(?!([\/ \w]+\w[#]))'
-    pattern2 = r'(?<![\S])\#([^ \d][.\w\/ ]+?)\#([ \n]|$)'
+    pattern1 = r'(?<!\S)\#([^ \d][\w\/\-]+)[ \n]?(?!([\/ \w\-]+\w[#]))'
+    pattern2 = r'(?<![\S])\#([^ \d][.\w\/ \-]+?)\#([ \n]|$)'
     if multi_tag_folders:
         # Files copied to all tag-folders found in note
         tags = []
