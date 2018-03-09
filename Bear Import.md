@@ -5,6 +5,8 @@
 
 *See also:* **[bear_export_sync.py](https://github.com/rovest/Bear-Markdown-Export/blob/master/README.md)** *for export with sync-back.*
 
+*See also: [Bear Power Pack](https://github.com/rovest/Bear-Power-Pack/blob/master/README.md)*
+
 
 ### Features 
 
