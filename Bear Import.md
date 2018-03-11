@@ -18,6 +18,8 @@
 * Use for email input to Bear with Zapier's "Gmail to Dropbox" zap.
 * Or for import of nested groups and sheets from Ulysses, images and keywords included.
 
+**NOTE:** Uses Python3 – [Python 3.6.4 Mac OS X installer](https://www.python.org/ftp/python/3.6.4/python-3.6.4-macosx10.6.pkg)
+
 
 ### Trigger script with Automator Folder Action
 
