@@ -48,6 +48,9 @@ def str2bool(v):
 
 parser = argparse.ArgumentParser(description='Markdown export from Bear sqlite database.')
 
+parser.add_argument("--sync", type=str2bool, nargs='?', const=True,
+                    default=True, help="(Default: True) Sync external updates back into Bear")
+
 parser.add_argument("--make_tag_folders", type=str2bool, nargs='?', const=True,
                     default=True, help="(Default: True) Exports to folders using first tag only, if `multi_tag_folders = False`")
 
@@ -80,6 +83,7 @@ parser.add_argument("--set_logging_on", type=str2bool, nargs='?', const=True,
                     default=True, help="(Default: True)")
 
 args = parser.parse_args()
+sync = args.sync
 make_tag_folders = args.make_tag_folders
 multi_tag_folders = args.multi_tag_folders
 hide_tags_in_comment_block = args.hide_tags_in_comment_block
@@ -144,7 +148,8 @@ gettag_txt = os.path.join(HOME, 'temp/gettag.txt')
 
 def main():
     init_gettag_script()
-    sync_md_updates()
+    if sync:
+        sync_md_updates()
     if check_db_modified():
         delete_old_temp_files()
         note_count = export_markdown()
