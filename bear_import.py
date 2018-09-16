@@ -40,13 +40,18 @@ parser.add_argument("--use_filename_as_title", type=str2bool, nargs='?', const=T
 parser.add_argument("--set_logging_on", type=str2bool, nargs='?', const=True,
                     default=True, help="(Default: True)")
 
+parser.add_argument("--wait_before_import", type=int, nargs='?', const=True,
+                    default=3, help="(Default: 3) Seconds to wait before importing external files")
+
+parser.add_argument("--tag_to_use_for_notes_in_root", nargs='?', const=True,
+                    default="", help="(Default: '') Example: '#.inbox'. Tag to use for notes in the root of the import directory. Set to empty to not set a tag")
+
 args = parser.parse_args()
 my_sync_service = args.my_sync_service
 use_filename_as_title = args.use_filename_as_title
 set_logging_on = args.set_logging_on
-
-# This tag is added for convenience (easy deletion of imported notes they are not wanted.)
-# (Easier to delete one tag, than finding a bunch of tagless imported notes.)
+wait_before_import = args.wait_before_import
+tag_to_use_for_notes_in_root = args.tag_to_use_for_notes_in_root
 
 import datetime
 import re
@@ -58,6 +63,8 @@ import shutil
 import fnmatch
 import json
 
+# This tag is added for convenience (easy deletion of imported notes they are not wanted.)
+# (Easier to delete one tag, than finding a bunch of tagless imported notes.)
 import_tag = '#.imported/' + datetime.datetime.now().strftime('%Y-%m-%d')
 # import_tag = ''  # Blank if not needed
 
@@ -89,7 +96,7 @@ def import_external_files():
     files_found = False
     file_types = ('*.md', '*.txt', '*.markdown')
     count = 0
-    time.sleep(3)  # Wait a little bit after being triggered by Automator Folder Action
+    time.sleep(wait_before_import)  # Wait a little bit after being triggered by Automator Folder Action
     for (root, dirnames, filenames) in os.walk(import_path):
         '''
         This step walks down into all sub folders, if any.
@@ -114,7 +121,7 @@ def import_external_files():
                     and '.textbundle/' in md_file:
                     # New textbundle with images:
                     bundle = os.path.split(md_file)[0]
-                    md_text = get_tag_from_path(md_text, bundle, import_path, False)
+                    md_text = get_tag_from_path(md_text, bundle, import_path)
                     write_file(md_file, md_text, mod_dt)
                     os.utime(bundle, (-1, mod_dt))
                     subprocess.call(['open', '-a', '/applications/bear.app', bundle])
@@ -129,7 +136,7 @@ def import_external_files():
                         file_bundle = md_file
                         if use_filename_as_title:
                             title = os.path.splitext(os.path.split(md_file)[1])[0]
-                    md_text = get_tag_from_path(md_text, file_bundle, import_path, False)                    
+                    md_text = get_tag_from_path(md_text, file_bundle, import_path)
                     x_create = 'bear://x-callback-url/create?show_window=no' 
                     bear_x_callback(x_create, md_text, title)
                     move_import_to_done(file_bundle, import_path, import_done)
@@ -161,15 +168,12 @@ def move_import_to_done(file_bundle, import_path, import_done):
     shutil.move(file_bundle, dest_file)
 
 
-def get_tag_from_path(md_text, file_bundle, root_path, inbox_for_root=True):
+def get_tag_from_path(md_text, file_bundle, root_path):
     path = file_bundle.replace(root_path, '')[1:]
     sub_path = os.path.split(path)[0]
     tags = []
-    if sub_path == '': 
-        if inbox_for_root:
-            tag = '#.inbox'
-        else:
-            tag = ''
+    if sub_path == '':
+        tag = tag_to_use_for_notes_in_root
     elif sub_path.startswith('_'):
         tag = '#.' + sub_path[1:].strip()
     else:
