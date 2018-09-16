@@ -36,28 +36,60 @@ or leave list empty for all notes: `limit_export_to_tags = []`
 * Or export as textbundles with images included 
 '''
 
-make_tag_folders = True  # Exports to folders using first tag only, if `multi_tag_folders = False`
-multi_tag_folders = True  # Copies notes to all 'tag-paths' found in note!
-                          # Only active if `make_tag_folders = True`
-hide_tags_in_comment_block = True  # Hide tags in HTML comments: `<!-- #mytag -->`
+import argparse
+
+def str2bool(v):
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
+parser = argparse.ArgumentParser(description='Markdown export from Bear sqlite database.')
+
+parser.add_argument("--make_tag_folders", type=str2bool, nargs='?', const=True,
+                    default=True, help="(Default: True) Exports to folders using first tag only, if `multi_tag_folders = False`")
+
+parser.add_argument("--multi_tag_folders", type=str2bool, nargs='?', const=True,
+                    default=True, help="(Default: True) Copies notes to all 'tag-paths' found in note! Only active if `make_tag_folders = True`")
+
+parser.add_argument("--hide_tags_in_comment_block", type=str2bool, nargs='?', const=True,
+                    default=True, help="(Default: True) Hide tags in HTML comments: `<!-- #mytag -->`")
 
 # The following two lists are more or less mutually exclusive, so use only one of them.
 # (You can use both if you have some nested tags where that makes sense)
-# Also, they only work if `make_tag_folders = True`.
-only_export_these_tags = []  # Leave this list empty for all notes! See below for sample
-# only_export_these_tags = ['bear/github', 'writings'] 
-no_export_tags = []  # If a tag in note matches one in this list, it will not be exported.
-# no_export_tags = ['private', '.inbox', 'love letters', 'banking'] 
+parser.add_argument("--only_export_these_tags", nargs='*',
+                    default=[], help="(Default: '') Example: \"--only_export_these_tags 'bear/github' 'writings'\". Leave this list empty for all notes! Works only if `make_tag_folders = True`")
+parser.add_argument("--no_export_tags", nargs='*',
+                    default=[], help="(Default: '') Example: \"--no_export_tags 'private' '.inbox' 'love letters' 'banking'\". If a tag in note matches one in this list, it will not be exported.")
 
-export_as_textbundles = True  # Exports as Textbundles with images included
-export_as_hybrids = True  # Exports as .textbundle only if images included, otherwise as .md
-                          # Only used if `export_as_textbundles = True`
-export_image_repository = False  # Export all notes as md but link images to 
-                                 # a common repository exported to: `assets_path` 
-                                 # Only used if `export_as_textbundles = False`
+parser.add_argument("--export_as_textbundles", type=str2bool, nargs='?', const=True,
+                    default=False, help="(Default: False) Exports as Textbundles with images included")
 
-my_sync_service = 'Dropbox'  # Change 'Dropbox' to 'Box', 'Onedrive',
-    # or whatever folder of sync service you need.
+parser.add_argument("--export_as_hybrids", type=str2bool, nargs='?', const=True,
+                    default=True, help="(Default: True) Exports as .textbundle only if images included, otherwise as .md. Only used if `export_as_textbundles = True`")
+
+parser.add_argument("--export_image_repository", type=str2bool, nargs='?', const=True,
+                    default=False, help="(Default: False) Export all notes as md but link images to a common repository exported to: `assets_path`. Only used if `export_as_textbundles = False`")
+
+parser.add_argument("--my_sync_service", nargs='?', const=True,
+                    default="Dropbox", help="(Default: Dropbox) Change 'Dropbox' to 'Box', 'Onedrive', or whatever folder of sync service you need.")
+
+parser.add_argument("--set_logging_on", type=str2bool, nargs='?', const=True,
+                    default=True, help="(Default: True)")
+
+args = parser.parse_args()
+make_tag_folders = args.make_tag_folders
+multi_tag_folders = args.multi_tag_folders
+hide_tags_in_comment_block = args.hide_tags_in_comment_block
+only_export_these_tags = args.only_export_these_tags
+no_export_tags = args.no_export_tags
+export_as_textbundles = args.export_as_textbundles
+export_as_hybrids = args.export_as_hybrids
+export_image_repository = args.export_image_repository
+my_sync_service = args.my_sync_service
+set_logging_on = args.set_logging_on
 
 # NOTE! Your user 'HOME' path and '/BearNotes' is added below!
 # NOTE! So do not change anything below here!!!
@@ -74,8 +106,6 @@ import fnmatch
 import json
 
 HOME = os.getenv('HOME', '')
-
-set_logging_on = True
 
 # NOTE! if 'BearNotes' is left blank, all other files in my_sync_service will be deleted!! 
 export_path = os.path.join(HOME, my_sync_service, 'BearNotes')

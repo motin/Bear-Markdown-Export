@@ -18,12 +18,32 @@ github/rovest, rorves@twitter
 * Or for import of nested groups and sheets from Ulysses, images and keywords included.
 '''
 
-my_sync_service = 'Dropbox'  # Change 'Dropbox' to 'Box', 'Onedrive',
-    # or whatever folder of sync service you need.
-    # Your user "Home" folder is added below.
+import argparse
 
-use_filename_as_title = False  # Set to `True` if importing Simplenotes synced with nvALT.
-set_logging_on = True
+def str2bool(v):
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
+parser = argparse.ArgumentParser(description='Markdown import to Bear from folder.')
+
+parser.add_argument("--my_sync_service", nargs='?', const=True,
+                    default="Dropbox", help="(Default: Dropbox) Change 'Dropbox' to 'Box', 'Onedrive', or whatever folder of sync service you need.")
+# Your user "Home" folder is added below.
+
+parser.add_argument("--use_filename_as_title", type=str2bool, nargs='?', const=True,
+                    default=False, help="(Default: False) Set to `True` if importing Simplenotes synced with nvALT.")
+
+parser.add_argument("--set_logging_on", type=str2bool, nargs='?', const=True,
+                    default=True, help="(Default: True)")
+
+args = parser.parse_args()
+my_sync_service = args.my_sync_service
+use_filename_as_title = args.use_filename_as_title
+set_logging_on = args.set_logging_on
 
 # This tag is added for convenience (easy deletion of imported notes they are not wanted.)
 # (Easier to delete one tag, than finding a bunch of tagless imported notes.)
