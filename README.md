@@ -31,7 +31,7 @@ For first tag only, or all tags (duplicates notes)
 * **NEW** Hybrid export: `.textbundles` of notes with images, otherwise regular `.md` (Makes it easier to browse and edit on other platforms.)
 * **NEW** Writes log to `bear_export_sync_log.txt` in `BearSyncBackup` folder.
 
-**NOTE:** Uses Python3 – [Python 3.6.4 Mac OS X installer](https://www.python.org/ftp/python/3.6.4/python-3.6.4-macosx10.6.pkg)
+**NOTE:** Uses Python 3.7 – [Python 3.7.0 Mac OS X installer](https://www.python.org/ftp/python/3.7.0/python-3.7.0-macosx10.6.pkg)
 
 Edit your Bear notes online in browser on [OneDrive.com](https://onedrive.live.com). It has a ok editor for plain text/markdown. Or with [StackEdit](https://stackedit.io/app), an amazing online markdown editor that can sync with *Dropbox* or *Google Drive*
 

@@ -43,15 +43,23 @@ parser.add_argument("--set_logging_on", type=str2bool, nargs='?', const=True,
 parser.add_argument("--wait_before_import", type=int, nargs='?', const=True,
                     default=3, help="(Default: 3) Seconds to wait before importing external files")
 
+parser.add_argument("--wait_on_no_files_found", type=int, nargs='?', const=True,
+                    default=5, help="(Default: 3) Seconds to wait when no files are found. This allows external files to finish downloading from dropbox. Otherwise images in textbundles might be missing in import")
+
 parser.add_argument("--tag_to_use_for_notes_in_root", nargs='?', const=True,
                     default="", help="(Default: '') Example: '#.inbox'. Tag to use for notes in the root of the import directory. Set to empty to not set a tag")
+
+parser.add_argument("--base_import_path", nargs='?', const=True,
+                    default=False, help="(Default: '~/{my_sync_service}') The folder in which 'BearImport/input' and 'BearImport/done' exists or will be created on first run")
 
 args = parser.parse_args()
 my_sync_service = args.my_sync_service
 use_filename_as_title = args.use_filename_as_title
 set_logging_on = args.set_logging_on
 wait_before_import = args.wait_before_import
+wait_on_no_files_found = args.wait_on_no_files_found
 tag_to_use_for_notes_in_root = args.tag_to_use_for_notes_in_root
+base_import_path = args.base_import_path
 
 import datetime
 import re
@@ -70,9 +78,12 @@ import_tag = '#.imported/' + datetime.datetime.now().strftime('%Y-%m-%d')
 
 HOME = os.getenv('HOME', '')
 
+if base_import_path == False:
+    base_import_path = os.path.join(HOME, my_sync_service)
+
 # Import folder for files from other apps, 
 # or incoming emails via "Gmail to Dropbox" Zapier zap or IFTTT
-bear_import = os.path.join(HOME, my_sync_service, 'BearImport')
+bear_import = os.path.join(base_import_path, 'BearImport')
 import_path = os.path.join(bear_import, 'input')
 import_done = os.path.join(bear_import, 'done')
 
@@ -106,7 +117,7 @@ def import_external_files():
                 if not files_found:  # Yet
                     # Wait 5 sec at first for external files to finish downloading from dropbox.
                     # Otherwise images in textbundles might be missing in import:
-                    time.sleep(5)
+                    time.sleep(wait_on_no_files_found)
                 files_found = True
                 md_file = os.path.join(root, filename)
                 mod_dt = os.path.getmtime(md_file)

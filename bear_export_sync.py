@@ -98,8 +98,6 @@ export_image_repository = args.export_image_repository
 my_sync_service = args.my_sync_service
 set_logging_on = args.set_logging_on
 base_export_path = args.base_export_path
-if base_export_path == False:
-    base_export_path = os.path.join(HOME, my_sync_service)
 
 # NOTE! Your user 'HOME' path and '/BearNotes' is added below!
 # NOTE! So do not change anything below here!!!
@@ -117,11 +115,14 @@ import json
 
 HOME = os.getenv('HOME', '')
 
+if base_export_path == False:
+    base_export_path = os.path.join(HOME, my_sync_service)
+
 # NOTE! if 'BearNotes' is left blank, all other files in my_sync_service will be deleted!! 
 export_path = os.path.join(base_export_path, 'BearNotes')
 # NOTE! "export_path" is used for sync-back to Bear, so don't change this variable name!
 multi_export = [(export_path, True)]  # only one folder output here. 
-# Use if you want export to severa places like: Dropbox and OneDrive, etc. See below
+# Use if you want export to several places like: Dropbox and OneDrive, etc. See below
 # Sample for multi folder export:
 # export_path_aux1 = os.path.join(HOME, 'OneDrive', 'BearNotes')
 # export_path_aux2 = os.path.join(HOME, 'Box', 'BearNotes')
@@ -257,7 +258,7 @@ def make_text_bundle(md_text, filepath, mod_dt):
         image_name = match
         new_name = image_name.replace('/', '_')
         source = os.path.join(bear_image_path, image_name)
-        target = os.path.join(assets_path, new_name)
+        target = os.path.join(assets_path, new_name[:255])
         shutil.copy2(source, target)
 
     md_text = re.sub(r'\[image:(.+?)/(.+?)\]', r'![](assets/\1_\2)', md_text)
