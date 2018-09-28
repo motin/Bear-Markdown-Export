@@ -281,6 +281,8 @@ def sub_path_from_tag(temp_path, filename, md_text):
             tag2 = matches2[0]
             tags.append(tag2)
         if len(tags) == 0:
+            if only_export_these_tags:
+                return []
             # No tags found, copy to root level only
             return [os.path.join(temp_path, filename)]
     else:
@@ -296,6 +298,8 @@ def sub_path_from_tag(temp_path, filename, md_text):
             tag = match1.group(1)
         elif match2:
             tag = match2.group(1)
+        elif only_export_these_tags:
+            return []
         else:
             # No tags found, copy to root level only
             return [os.path.join(temp_path, filename)]
