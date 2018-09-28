@@ -211,7 +211,7 @@ def export_markdown():
             mod_dt = dt_conv(modified)
             md_text = hide_tags(md_text)
             md_text += '\n\n<!-- {BearID:' + uuid + '} -->\n'
-            for filepath in file_list:
+            for filepath in set(file_list):
                 note_count += 1
                 # print(filepath)
                 if export_as_textbundles:
