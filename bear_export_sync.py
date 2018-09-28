@@ -133,6 +133,10 @@ multi_export = [(export_path, True)]  # only one folder output here.
 
 temp_path = os.path.join(HOME, 'Temp', 'BearExportTemp')  # NOTE! Do not change the "BearExportTemp" folder name!!!
 bear_db = os.path.join(HOME, 'Library/Containers/net.shinyfrog.bear/Data/Documents/Application Data/database.sqlite')
+if not (os.path.isfile(bear_db)):
+    bear_db = os.path.join(HOME, 'Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data/database.sqlite')
+if not (os.path.isfile(bear_db)):
+    raise RuntimeError("The Bear database was not found")
 sync_backup = os.path.join(base_export_path, 'BearSyncBackup') # Backup of original note before sync to Bear.
 log_file = os.path.join(sync_backup, 'bear_export_sync_log.txt')
 
