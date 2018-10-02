@@ -57,6 +57,11 @@ parser.add_argument("--make_tag_folders", type=str2bool, nargs='?', const=True,
 parser.add_argument("--multi_tag_folders", type=str2bool, nargs='?', const=True,
                     default=True, help="(Default: True) Copies notes to all 'tag-paths' found in note! Only active if `make_tag_folders = True`")
 
+parser.add_argument("--raw", type=str2bool, nargs='?', const=False,
+                    default=False, help=("(Default: False) Exports without any modification to the note contents, "
+                                         + "just like Bear does. This implies not hiding tags, not adding BearID. "
+                                         + "Note: This effectively disables later syncing of modified contents."))
+
 parser.add_argument("--hide_tags_in_comment_block", type=str2bool, nargs='?', const=True,
                     default=True, help="(Default: True) Hide tags in HTML comments: `<!-- #mytag -->`")
 
@@ -89,6 +94,7 @@ args = parser.parse_args()
 sync = args.sync
 make_tag_folders = args.make_tag_folders
 multi_tag_folders = args.multi_tag_folders
+raw = args.raw
 hide_tags_in_comment_block = args.hide_tags_in_comment_block
 only_export_these_tags = args.only_export_these_tags
 no_export_tags = args.no_export_tags
@@ -213,8 +219,9 @@ def export_markdown():
             file_list.append(os.path.join(temp_path, filename))
         if file_list:
             mod_dt = dt_conv(modified)
-            md_text = hide_tags(md_text)
-            md_text += '\n\n<!-- {BearID:' + uuid + '} -->\n'
+            if not raw:
+                md_text = hide_tags(md_text)
+                md_text += '\n\n<!-- {BearID:' + uuid + '} -->\n'
             for filepath in set(file_list):
                 note_count += 1
                 # print(filepath)
