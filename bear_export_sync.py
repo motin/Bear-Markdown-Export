@@ -5,7 +5,8 @@
 
 '''
 # Markdown export from Bear sqlite database 
-Version 1.3.13, 2018-03-06 at 15:32 EST
+Version 1.3.14, 2018-10-17 at 09:05 CEST
+Updaded 2018-10-17 with new Bear path: 'Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data'
 github/rovest, rorves@twitter
 
 See also: bear_import.py for auto import to bear script.
@@ -91,13 +92,18 @@ multi_export = [(export_path, True)]  # only one folder output here.
 # multi_export = [(export_path, True), (export_path_aux1, False), (export_path_aux2, True)]
 
 temp_path = os.path.join(HOME, 'Temp', 'BearExportTemp')  # NOTE! Do not change the "BearExportTemp" folder name!!!
-bear_db = os.path.join(HOME, 'Library/Containers/net.shinyfrog.bear/Data/Documents/Application Data/database.sqlite')
+
+# Old_bear_db = os.path.join(HOME, 'Library/Containers/net.shinyfrog.bear/Data/Documents/Application Data/database.sqlite')
+bear_db = os.path.join(HOME, 'Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data/database.sqlite')
+
 sync_backup = os.path.join(HOME, my_sync_service, 'BearSyncBackup') # Backup of original note before sync to Bear.
 log_file = os.path.join(sync_backup, 'bear_export_sync_log.txt')
 
 # Paths used in image exports:
-bear_image_path = os.path.join(HOME,
-    'Library/Containers/net.shinyfrog.bear/Data/Documents/Application Data/Local Files/Note Images')
+# Old_bear_image_path = os.path.join(HOME, 
+#         'Library/Containers/net.shinyfrog.bear/Data/Documents/Application Data/Local Files/Note Images')
+bear_image_path = os.path.join(HOME, 
+         'Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data/Local Files/Note Images')
 assets_path = os.path.join(HOME, export_path, 'BearImages')
 
 sync_ts = '.sync-time.log'
@@ -215,11 +221,18 @@ def make_text_bundle(md_text, filepath, mod_dt):
     for match in matches:
         image_name = match
         new_name = image_name.replace('/', '_')
+        # new_name = new_name.replace(' ', '%20')
         source = os.path.join(bear_image_path, image_name)
         target = os.path.join(assets_path, new_name)
-        shutil.copy2(source, target)
+        try:
+            shutil.copy2(source, target)
+        except:
+            print("File missing:", source)
+            pass
 
     md_text = re.sub(r'\[image:(.+?)/(.+?)\]', r'![](assets/\1_\2)', md_text)
+    # Fix for images taken with iPhone camera direct in Bear:
+    md_text = re.sub(r'(_Photo) (\w\w\w) (\d\d?,) (20\d\d) (at) (\d+.jpg\))', r'\1%20\2%20\3%20\4%20\5%20\6', md_text)
     write_file(bundle_path + '/text.md', md_text, mod_dt)
     write_file(bundle_path + '/info.json', info, mod_dt)
     os.utime(bundle_path, (-1, mod_dt))

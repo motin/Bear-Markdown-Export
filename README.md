@@ -1,11 +1,9 @@
 ## Markdown export and sync of Bear notes
 
-***bear_export_sync.py***   
-*Version 1.3.13, 2018-03-06 at 15:32 EST*
+*Version 1.3.14, 2018-10-17 at 09:05 CEST*   
+*Updated 2018-10-17 with new Bear path: 'Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data'**
 
 Python script for export and roundtrip sync of Bear's notes to OneDrive, Dropbox, etc. and edit online with [StackEdit](https://stackedit.io/app), or use a markdown editor like *Typora* on Windows or a suitable app on Android. Remote edits and new notes get synced back into Bear with this script.
-
-**See also: [Bear Markdown and textbundle import – with tags from file and folder](https://github.com/rovest/Bear-Markdown-Export/blob/master/Bear%20Import.md)**
 
 Set up seamless syncing with Ulysses’ external folders on Mac, with images included!  
 Write and add photos in Bear, then reorder, glue, and publish, export, or print with styles in Ulysses—  
@@ -30,8 +28,6 @@ For first tag only, or all tags (duplicates notes)
 * Export option: Hide tags in HTML comments like: `<!-- #mytag -->` if `hide_tags_in_comment_block = True`
 * **NEW** Hybrid export: `.textbundles` of notes with images, otherwise regular `.md` (Makes it easier to browse and edit on other platforms.)
 * **NEW** Writes log to `bear_export_sync_log.txt` in `BearSyncBackup` folder.
-
-**NOTE:** Uses Python3 – [Python 3.6.4 Mac OS X installer](https://www.python.org/ftp/python/3.6.4/python-3.6.4-macosx10.6.pkg)
 
 Edit your Bear notes online in browser on [OneDrive.com](https://onedrive.live.com). It has a ok editor for plain text/markdown. Or with [StackEdit](https://stackedit.io/app), an amazing online markdown editor that can sync with *Dropbox* or *Google Drive*
 
