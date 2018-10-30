@@ -1,8 +1,13 @@
 ## Markdown export and sync of Bear notes
 
-*Version 1.3.15, 2018-10-30 at 16:01 IST*  
-*Updaded 2018-10-30 with newer rsync from Carbon Copy Cloner to preserve file-creation-time.*  
-*Updaded 2018-10-17 with new Bear path: 'Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data'*
+*Version 1.3.15, 2018-10-30 at 20:30 IST* 
+
+*Updaded 2018-10-30:*
+- *Use newer rsync from Carbon Copy Cloner to preserve file-creation-time.*
+- *Fixed escaping of spaces in image names from iPhone camera taken directly in Bear.*
+
+*Updaded 2018-10-17:*
+- *new Bear path: 'Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data'*
 
 Python script for export and roundtrip sync of Bear's notes to OneDrive, Dropbox, etc. and edit online with [StackEdit](https://stackedit.io/app), or use a markdown editor like *Typora* on Windows or a suitable app on Android. Remote edits and new notes get synced back into Bear with this script.
 

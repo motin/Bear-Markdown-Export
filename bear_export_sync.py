@@ -6,8 +6,9 @@
 
 '''
 # Markdown export from Bear sqlite database 
-Version 1.3.15, 2018-10-30 at 16:01 IST
-Updaded 2018-10-30 with newer rsync from Carbon Copy Cloner to preserve file-creation-time.
+Version 1.3.15, 2018-10-30 at 20:30 IST
+Updaded 2018-10-30 with newer rsync from Carbon Copy Cloner to preserve file-creation-time.  
+    Fixed escaping of spaces in image names from iPhone camera taken directly in Bear.
 Updaded 2018-10-17 with new Bear path: 'Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data'
 github/rovest, rorves@twitter
 
@@ -231,21 +232,20 @@ def make_text_bundle(md_text, filepath, mod_dt, cre_dt):
     "version" : 2
     }'''
     matches = re.findall(r'\[image:(.+?)\]', md_text)
-    for match in matches:
-        image_name = match
-        new_name = image_name.replace('/', '_')
-        # new_name = new_name.replace(' ', '%20')
-        source = os.path.join(bear_image_path, image_name)
+    for image in matches:
+        new_name = image.replace('/', '_')
+        source = os.path.join(bear_image_path, image)
         target = os.path.join(assets_path, new_name)
         try:
             shutil.copy2(source, target)
+            # Escape spaces in dates on images taken with iPhone camera direct in Bear:
+            if ' ' in image:
+                md_text = md_text.replace('[image:' + image, '[image:' + image.replace(' ', '%20'))
         except:
             print("File missing:", source)
             pass
 
     md_text = re.sub(r'\[image:(.+?)/(.+?)\]', r'![](assets/\1_\2)', md_text)
-    # Fix for images taken with iPhone camera direct in Bear:
-    md_text = re.sub(r'(_Photo) (\w\w\w) (\d\d?,) (20\d\d) (at) (\d+.jpg\))', r'\1%20\2%20\3%20\4%20\5%20\6', md_text)
     write_file(bundle_path + '/text.md', md_text, mod_dt, cre_dt)
     write_file(bundle_path + '/info.json', info, mod_dt, cre_dt)
     os.utime(bundle_path, (-1, cre_dt))
@@ -332,7 +332,7 @@ def restore_image_links(md_text):
         return md_text
     if export_as_textbundles:
         md_text = re.sub(r'!\[(.*?)\]\(assets/(.+?)_(.+?)( ".+?")?\) ?', r'[image:\2/\3]\4 \1', md_text)
-    elif export_image_repository :
+    elif export_image_repository:
         # md_text = re.sub(r'\[image:(.+?)\]', r'![](../assets/\1)', md_text)
         md_text = re.sub(r'!\[\]\((\.\./)*BearImages/(.+?)\)', r'[image:\2]', md_text)
     return md_text
