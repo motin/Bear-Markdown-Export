@@ -1,11 +1,13 @@
 # encoding=utf-8
 # python3.6
 # bear_export_sync.py
+# Tested with python 3.6 and Bear 1.6.3 on MacOS 10.14
 # Developed with Visual Studio Code with MS Python Extension.
 
 '''
 # Markdown export from Bear sqlite database 
-Version 1.3.14, 2018-10-17 at 09:05 CEST
+Version 1.3.15, 2018-10-30 at 16:01 IST
+Updaded 2018-10-30 with newer rsync from Carbon Copy Cloner to preserve file-creation-time.
 Updaded 2018-10-17 with new Bear path: 'Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data'
 github/rovest, rorves@twitter
 
@@ -118,6 +120,16 @@ gettag_sh = os.path.join(HOME, 'temp/gettag.sh')
 gettag_txt = os.path.join(HOME, 'temp/gettag.txt')
 
 
+rsync_path = '/Library/Application Support/com.bombich.ccc/Frameworks/CloneKit.framework/Versions/A/rsync'
+# If present, use newer rsync v. 3.0.6 from Carbon Copy Cloner 
+# with --crtimes to preserve file-creation-time
+if os.path.exists(rsync_path):
+    crswitch = '--crtimes' 
+else:
+    rsync_path = 'rsync'
+    crswitch = ''
+    
+
 def main():
     init_gettag_script()
     sync_md_updates()
@@ -172,6 +184,7 @@ def export_markdown():
         else:
             file_list.append(os.path.join(temp_path, filename))
         if file_list:
+            cre_dt = dt_conv(creation_date)
             mod_dt = dt_conv(modified)
             md_text = hide_tags(md_text)
             md_text += '\n\n<!-- {BearID:' + uuid + '} -->\n'
@@ -180,14 +193,14 @@ def export_markdown():
                 # print(filepath)
                 if export_as_textbundles:
                     if check_image_hybrid(md_text):
-                        make_text_bundle(md_text, filepath, mod_dt)                        
+                        make_text_bundle(md_text, filepath, mod_dt, cre_dt)                        
                     else:
-                        write_file(filepath + '.md', md_text, mod_dt)
+                        write_file(filepath + '.md', md_text, mod_dt, cre_dt)
                 elif export_image_repository:
                     md_proc_text = process_image_links(md_text, filepath)
-                    write_file(filepath + '.md', md_proc_text, mod_dt)
+                    write_file(filepath + '.md', md_proc_text, mod_dt, cre_dt)
                 else:
-                    write_file(filepath + '.md', md_text, mod_dt)
+                    write_file(filepath + '.md', md_text, mod_dt, cre_dt)
     return note_count
 
 
@@ -201,7 +214,7 @@ def check_image_hybrid(md_text):
         return True
 
 
-def make_text_bundle(md_text, filepath, mod_dt):
+def make_text_bundle(md_text, filepath, mod_dt, cre_dt):
     '''
     Exports as Textbundles with images included 
     '''
@@ -233,8 +246,9 @@ def make_text_bundle(md_text, filepath, mod_dt):
     md_text = re.sub(r'\[image:(.+?)/(.+?)\]', r'![](assets/\1_\2)', md_text)
     # Fix for images taken with iPhone camera direct in Bear:
     md_text = re.sub(r'(_Photo) (\w\w\w) (\d\d?,) (20\d\d) (at) (\d+.jpg\))', r'\1%20\2%20\3%20\4%20\5%20\6', md_text)
-    write_file(bundle_path + '/text.md', md_text, mod_dt)
-    write_file(bundle_path + '/info.json', info, mod_dt)
+    write_file(bundle_path + '/text.md', md_text, mod_dt, cre_dt)
+    write_file(bundle_path + '/info.json', info, mod_dt, cre_dt)
+    os.utime(bundle_path, (-1, cre_dt))
     os.utime(bundle_path, (-1, mod_dt))
 
 
@@ -333,9 +347,9 @@ def copy_bear_images():
 def write_time_stamp():
     # write to time-stamp.txt file (used during sync)
     write_file(export_ts_file, "Markdown from Bear written at: " +
-               datetime.datetime.now().strftime("%Y-%m-%d at %H:%M:%S"), 0)
+               datetime.datetime.now().strftime("%Y-%m-%d at %H:%M:%S"), 0, 0)
     write_file(sync_ts_file_temp, "Markdown from Bear written at: " +
-               datetime.datetime.now().strftime("%Y-%m-%d at %H:%M:%S"), 0)
+               datetime.datetime.now().strftime("%Y-%m-%d at %H:%M:%S"), 0, 0)
 
 
 def hide_tags(md_text):
@@ -365,10 +379,17 @@ def clean_title(title):
     return title.strip()
 
 
-def write_file(filename, file_content, modified):
+def write_file(filename, file_content, modified, created):
     with open(filename, "w", encoding='utf-8') as f:
         f.write(file_content)
-    if modified > 0:
+    if created > 0 and modified > 0:
+        os.utime(filename, (-1, created))
+        os.utime(filename, (-1, modified))
+        # This way of first setting cre_time and then mod_time with os.utime()
+        # works in current directory (in this case: temp_path).
+        # Older rsync does not preserve file-creation-time,
+        # so use newer rsync v. 3.0.6 from Carbon Copy Cloner with --crtimes switch to preserve cre-time
+    elif modified > 0:
         os.utime(filename, (-1, modified))
 
 
@@ -436,7 +457,10 @@ def rsync_files_from_temp():
         if not os.path.exists(dest_path):
             os.makedirs(dest_path)
         if delete:
-            subprocess.call(['rsync', '-r', '-t', '--delete',
+            # subprocess.call(['rsync',
+            # Use newer rsync v. 3.0.6 from Carbon Copy Cloner with --crtimes to preserve cre-time
+            subprocess.call([rsync_path, crswitch,
+                             '-r', '-t', '--delete',
                              '--exclude', 'BearImages/',
                              '--exclude', '.Ulysses*',
                              '--exclude', '*.Ulysses_Public_Filter',
@@ -510,7 +534,7 @@ def textbundle_to_bear(md_text, md_file, mod_dt):
     else:
         # New textbundle (with images), add path as tag: 
         md_text = get_tag_from_path(md_text, bundle, export_path)
-    write_file(md_file, md_text, mod_dt)
+    write_file(md_file, md_text, mod_dt, 0)
     os.utime(bundle, (-1, mod_dt))
     subprocess.call(['open', '-a', '/applications/bear.app', bundle])
     time.sleep(0.5)
@@ -536,7 +560,7 @@ def backup_ext_note(md_file):
 def update_sync_time_file(ts):
     write_file(sync_ts_file,
         "Checked for Markdown updates to sync at: " +
-        datetime.datetime.now().strftime("%Y-%m-%d at %H:%M:%S"), ts)
+        datetime.datetime.now().strftime("%Y-%m-%d at %H:%M:%S"), ts, 0)
 
 
 def update_bear_note(md_text, md_file, ts, ts_last_export):
@@ -676,7 +700,7 @@ def backup_bear_note(uuid):
             # Adding sequence number to identical filenames, preventing overwrite:
             backup_file = file_part + " - " + str(count).zfill(2) + ".txt"
             count += 1
-        write_file(backup_file, md_text, mod_dt)
+        write_file(backup_file, md_text, mod_dt, 0)
         filename2 = os.path.split(backup_file)[1]
         write_log('Original to sync_backup: ' + filename2)
     return title
@@ -703,7 +727,7 @@ def init_gettag_script():
     temp = os.path.join(HOME, 'temp')
     if not os.path.exists(temp):
         os.makedirs(temp)
-    write_file(gettag_sh, gettag_script, 0)
+    write_file(gettag_sh, gettag_script, 0, 0)
     subprocess.call(['chmod', '777', gettag_sh])
     
 

@@ -1,7 +1,8 @@
 ## Markdown export and sync of Bear notes
 
-*Version 1.3.14, 2018-10-17 at 09:05 CEST*   
-*Updated 2018-10-17 with new Bear path: 'Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data'**
+*Version 1.3.15, 2018-10-30 at 16:01 IST*  
+*Updaded 2018-10-30 with newer rsync from Carbon Copy Cloner to preserve file-creation-time.*  
+*Updaded 2018-10-17 with new Bear path: 'Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data'*
 
 Python script for export and roundtrip sync of Bear's notes to OneDrive, Dropbox, etc. and edit online with [StackEdit](https://stackedit.io/app), or use a markdown editor like *Typora* on Windows or a suitable app on Android. Remote edits and new notes get synced back into Bear with this script.
 
@@ -10,7 +11,10 @@ Write and add photos in Bear, then reorder, glue, and publish, export, or print 
 bears and butterflies are best friends ;)  
 (PS. The manual order you set for notes in Ulysses' external folder, is maintained during syncs, unless title is changed.) 
 
-BEAR IN MIND! This is a free to use version, and please improve or modify as needed. But do be careful! both `rsync` and `shutil.rmtree` used here, are powerful commands that can wipe clean a whole folder tree or even your complete HD if paths are set incorrectly! Also, be safe, take a fresh backup of both Bear and your Mac before first run.
+**Please use as is or make a new branch for updates!  
+Thank you all for any input, and sorry that I don't have time to review and test pull requests.**
+
+BEAR IN MIND! This version is free to use as is, and please improve or modify your own version as needed. But do be careful! both `rsync` and `shutil.rmtree` used here, are powerful commands that can wipe clean a whole folder tree or even your complete HD if paths are set incorrectly! Also, be safe, take a fresh backup of both Bear and your Mac before first run.
 
 *See also: [Bear Power Pack](https://github.com/rovest/Bear-Power-Pack/blob/master/README.md)*
 
