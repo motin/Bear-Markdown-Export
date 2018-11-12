@@ -1,6 +1,10 @@
 ## Markdown export and sync of Bear notes
 
-*Version 1.3.15, 2018-10-30 at 20:30 IST* 
+*Version 1.4.0, 2018-11-12 at 13:57 IST* 
+
+*Updated 2018-11-12:* 
+- *Now with export of file attachments (only to .textbundle)*
+- *Removes escaping of spaces in sync/import back to Bear.*
 
 *Updaded 2018-10-30:*
 - *Use newer rsync from Carbon Copy Cloner to preserve file-creation-time.*

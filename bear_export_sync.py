@@ -6,10 +6,12 @@
 
 '''
 # Markdown export from Bear sqlite database 
-Version 1.3.15, 2018-10-30 at 20:30 IST
-Updaded 2018-10-30 with newer rsync from Carbon Copy Cloner to preserve file-creation-time.  
+Version 1.4.0, 2018-11-12 at 13:57 IST
+Updated 2018-11-12 with export of file attachments (when 'export_as_textbundles = True')
+                   Also fixed escaping of spaces for sync import back to Bear.
+Updated 2018-10-30 with newer rsync from Carbon Copy Cloner to preserve file-creation-time.  
     Fixed escaping of spaces in image names from iPhone camera taken directly in Bear.
-Updaded 2018-10-17 with new Bear path: 'Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data'
+Updated 2018-10-17 with new Bear path: 'Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data'
 github/rovest, rorves@twitter
 
 See also: bear_import.py for auto import to bear script.
@@ -56,6 +58,9 @@ no_export_tags = []  # If a tag in note matches one in this list, it will not be
 export_as_textbundles = True  # Exports as Textbundles with images included
 export_as_hybrids = True  # Exports as .textbundle only if images included, otherwise as .md
                           # Only used if `export_as_textbundles = True`
+export_with_files = True  # Only used if `export_as_textbundles = True`
+                          # Sync/Import back to Bear will loose any externally added file attachments,
+                          # as they are not part of textbundle spec.
 export_image_repository = False  # Export all notes as md but link images to 
                                  # a common repository exported to: `assets_path` 
                                  # Only used if `export_as_textbundles = False`
@@ -96,18 +101,17 @@ multi_export = [(export_path, True)]  # only one folder output here.
 
 temp_path = os.path.join(HOME, 'Temp', 'BearExportTemp')  # NOTE! Do not change the "BearExportTemp" folder name!!!
 
-# Old_bear_db = os.path.join(HOME, 'Library/Containers/net.shinyfrog.bear/Data/Documents/Application Data/database.sqlite')
 bear_db = os.path.join(HOME, 'Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data/database.sqlite')
 
 sync_backup = os.path.join(HOME, my_sync_service, 'BearSyncBackup') # Backup of original note before sync to Bear.
 log_file = os.path.join(sync_backup, 'bear_export_sync_log.txt')
 
 # Paths used in image exports:
-# Old_bear_image_path = os.path.join(HOME, 
-#         'Library/Containers/net.shinyfrog.bear/Data/Documents/Application Data/Local Files/Note Images')
 bear_image_path = os.path.join(HOME, 
          'Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data/Local Files/Note Images')
 assets_path = os.path.join(HOME, export_path, 'BearImages')
+bear_file_path = os.path.join(HOME, 
+         'Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data/Local Files/Note Files')
 
 sync_ts = '.sync-time.log'
 export_ts = '.export-time.log'
@@ -119,7 +123,6 @@ export_ts_file = os.path.join(temp_path, export_ts)
 
 gettag_sh = os.path.join(HOME, 'temp/gettag.sh')
 gettag_txt = os.path.join(HOME, 'temp/gettag.txt')
-
 
 rsync_path = '/Library/Application Support/com.bombich.ccc/Frameworks/CloneKit.framework/Versions/A/rsync'
 # If present, use newer rsync v. 3.0.6 from Carbon Copy Cloner 
@@ -220,10 +223,10 @@ def make_text_bundle(md_text, filepath, mod_dt, cre_dt):
     Exports as Textbundles with images included 
     '''
     bundle_path = filepath + '.textbundle'
-    assets_path = os.path.join(bundle_path, 'assets')    
+    assets = os.path.join(bundle_path, 'assets')    
     if not os.path.exists(bundle_path):
         os.makedirs(bundle_path)
-        os.makedirs(assets_path)
+        os.makedirs(assets)
         
     info = '''{
     "transient" : true,
@@ -231,11 +234,12 @@ def make_text_bundle(md_text, filepath, mod_dt, cre_dt):
     "creatorIdentifier" : "net.shinyfrog.bear",
     "version" : 2
     }'''
+
     matches = re.findall(r'\[image:(.+?)\]', md_text)
     for image in matches:
         new_name = image.replace('/', '_')
         source = os.path.join(bear_image_path, image)
-        target = os.path.join(assets_path, new_name)
+        target = os.path.join(assets, new_name)
         try:
             shutil.copy2(source, target)
             # Escape spaces in dates on images taken with iPhone camera direct in Bear:
@@ -244,12 +248,34 @@ def make_text_bundle(md_text, filepath, mod_dt, cre_dt):
         except:
             print("File missing:", source)
             pass
-
     md_text = re.sub(r'\[image:(.+?)/(.+?)\]', r'![](assets/\1_\2)', md_text)
+
+    if export_with_files:
+        md_text = include_files(md_text, assets)
     write_file(bundle_path + '/text.md', md_text, mod_dt, cre_dt)
     write_file(bundle_path + '/info.json', info, mod_dt, cre_dt)
     os.utime(bundle_path, (-1, cre_dt))
     os.utime(bundle_path, (-1, mod_dt))
+
+
+def include_files(md_text, assets):
+    matches = re.findall(r'\[file:(.+?)\]', md_text)
+    for file in matches:
+        new_name = file.replace('/', '_')
+        source = os.path.join(bear_file_path, file)
+        target = os.path.join(assets, new_name)
+        try:
+            shutil.copy2(source, target)
+        except:
+            print("File missing:", source)
+            pass
+    md_text = re.sub(r'\[file:(.+?)/(.+?)\]', r'[file: \2](assets/\1_\2)', md_text)
+    # Escape spaces in filenames:
+    matches = re.findall(r'\[file: .+?\]\(assets/(.*?)\)', md_text)
+    for file in matches:
+        if ' ' in file:
+            md_text = md_text.replace('(assets/' + file, '(assets/' + file.replace(' ', '%20'))
+    return md_text
 
 
 def sub_path_from_tag(temp_path, filename, md_text):
@@ -332,9 +358,29 @@ def restore_image_links(md_text):
         return md_text
     if export_as_textbundles:
         md_text = re.sub(r'!\[(.*?)\]\(assets/(.+?)_(.+?)( ".+?")?\) ?', r'[image:\2/\3]\4 \1', md_text)
+        matches = re.findall(r'\[image:(.+?)\]', md_text)
+        for file in matches:
+            if '%20' in file:
+                md_text = md_text.replace('[image:' + file, '[image:' + file.replace('%20', ' '))       
     elif export_image_repository:
         # md_text = re.sub(r'\[image:(.+?)\]', r'![](../assets/\1)', md_text)
         md_text = re.sub(r'!\[\]\((\.\./)*BearImages/(.+?)\)', r'[image:\2]', md_text)
+    return md_text
+
+
+def restore_file_links(md_text):
+    '''
+    MD file links restored back to Bear links
+    '''
+    if not re.search(r'\[file: .*?\]\(assets/.+?\)', md_text):
+        # No file links in note, return unchanged:
+        return md_text
+    if export_as_textbundles:
+        md_text = re.sub(r'\[file: (.*?)\]\(assets/(.+?)_(.+?)( ".+?")?\) ?', r'[file:\2/\3]', md_text)
+        matches = re.findall(r'\[file:(.+?)\]', md_text)
+        for file in matches:
+            if '%20' in file:
+                md_text = md_text.replace('[file:' + file, '[file:' + file.replace('%20', ' '))       
     return md_text
 
 
@@ -566,6 +612,7 @@ def update_sync_time_file(ts):
 def update_bear_note(md_text, md_file, ts, ts_last_export):
     md_text = restore_tags(md_text)
     md_text = restore_image_links(md_text)
+    md_text = restore_file_links(md_text)
     uuid = ''
     match = re.search(r'\{BearID:(.+?)\}', md_text)
     sync_conflict = False
