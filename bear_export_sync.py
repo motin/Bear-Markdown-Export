@@ -6,14 +6,17 @@
 
 '''
 # Markdown export from Bear sqlite database 
-Version 1.4.1, 2018-11-12 at 17:23 IST
+Version 1.4.2, 2018-11-12 at 17:53 IST
 
 Updated 2018-11-12 Added export of file attachments (when 'export_as_textbundles = True')
         - All untagged notes are now exported to '_Untagged' folder if 'make_tag_folders = True'
         - Added choice for exporting with or without archived notes, or only archived.
         - Fixed escaping of spaces for sync import back to Bear.
+        - Fixed multiple copying if same tag is repeated in same note. Case sensitive though!
+
 Updated 2018-10-30 Uses newer rsync from Carbon Copy Cloner (if present) to preserve file-creation-time.  
         - Fixed escaping of spaces in image names from iPhone camera taken directly in Bear.
+
 Updated 2018-10-17 with new Bear path: 'Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data'
 
 github/rovest, rorves@twitter
@@ -307,10 +310,12 @@ def sub_path_from_tag(temp_path, filename, md_text):
         tags = []
         for matches in re.findall(pattern1, md_text):
             tag = matches[0]
-            tags.append(tag)
+            if tag not in tags:
+                tags.append(tag)
         for matches2 in re.findall(pattern2, md_text):
             tag2 = matches2[0]
-            tags.append(tag2)
+            if tag2 not in tags:
+                tags.append(tag2)
         if len(tags) == 0:
             # No tags found
             if untagged_folder_name == '':

@@ -1,12 +1,14 @@
 ## Markdown export and sync of Bear notes
 
-*Version 1.4.1, 2018-11-12 at 17:23 IST* 
+*Version 1.4.2, 2018-11-12 at 17:53 IST* 
 
 *Updated 2018-11-12:* 
 - *Now with export of file attachments (only to .textbundle)*
 - *All untagged notes are now exported to '_Untagged' folder if 'make_tag_folders = True'*
 - *Added choice for exporting with or without archived notes, or only archived.* 
 - *Removes escaping of spaces in sync/import back to Bear.*
+- *Fixed multiple copying if same tag is repeated in same note. Case sensitive though!*
+
 
 *Updaded 2018-10-30:*
 - *Use newer rsync from Carbon Copy Cloner to preserve file-creation-time.*
