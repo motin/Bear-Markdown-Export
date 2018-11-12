@@ -6,12 +6,16 @@
 
 '''
 # Markdown export from Bear sqlite database 
-Version 1.4.0, 2018-11-12 at 13:57 IST
-Updated 2018-11-12 with export of file attachments (when 'export_as_textbundles = True')
-                   Also fixed escaping of spaces for sync import back to Bear.
-Updated 2018-10-30 with newer rsync from Carbon Copy Cloner to preserve file-creation-time.  
-    Fixed escaping of spaces in image names from iPhone camera taken directly in Bear.
+Version 1.4.1, 2018-11-12 at 17:23 IST
+
+Updated 2018-11-12 Added export of file attachments (when 'export_as_textbundles = True')
+        - All untagged notes are now exported to '_Untagged' folder if 'make_tag_folders = True'
+        - Added choice for exporting with or without archived notes, or only archived.
+        - Fixed escaping of spaces for sync import back to Bear.
+Updated 2018-10-30 Uses newer rsync from Carbon Copy Cloner (if present) to preserve file-creation-time.  
+        - Fixed escaping of spaces in image names from iPhone camera taken directly in Bear.
 Updated 2018-10-17 with new Bear path: 'Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data'
+
 github/rovest, rorves@twitter
 
 See also: bear_import.py for auto import to bear script.
@@ -43,6 +47,8 @@ or leave list empty for all notes: `limit_export_to_tags = []`
 '''
 
 make_tag_folders = True  # Exports to folders using first tag only, if `multi_tag_folders = False`
+untagged_folder_name = '_Untagged'  # Only works if 'make_tag_folders = True'
+                                    # If empty: untagged notes are exported to root-folder.
 multi_tag_folders = True  # Copies notes to all 'tag-paths' found in note!
                           # Only active if `make_tag_folders = True`
 hide_tags_in_comment_block = True  # Hide tags in HTML comments: `<!-- #mytag -->`
@@ -53,7 +59,10 @@ hide_tags_in_comment_block = True  # Hide tags in HTML comments: `<!-- #mytag --
 only_export_these_tags = []  # Leave this list empty for all notes! See below for sample
 # only_export_these_tags = ['bear/github', 'writings'] 
 no_export_tags = []  # If a tag in note matches one in this list, it will not be exported.
-# no_export_tags = ['private', '.inbox', 'love letters', 'banking'] 
+# no_export_tags = ['private', '.inbox', 'love letters', 'banking']
+
+include_archived = True  # Archived included under '_Archived' sub folder (only works if 'only_archived = False')
+only_archived = False  # Exports only archived notes
 
 export_as_textbundles = True  # Exports as Textbundles with images included
 export_as_hybrids = True  # Exports as .textbundle only if images included, otherwise as .md
@@ -90,11 +99,11 @@ set_logging_on = True
 export_path = os.path.join(HOME, my_sync_service, 'BearNotes')
 # NOTE! "export_path" is used for sync-back to Bear, so don't change this variable name!
 multi_export = [(export_path, True)]  # only one folder output here. 
-# Use if you want export to severa places like: Dropbox and OneDrive, etc. See below
+# Add folders if you want export to several places like: both Dropbox and OneDrive, etc., see below:
+
 # Sample for multi folder export:
 # export_path_aux1 = os.path.join(HOME, 'OneDrive', 'BearNotes')
 # export_path_aux2 = os.path.join(HOME, 'Box', 'BearNotes')
-
 # NOTE! All files in export path not in Bear will be deleted if delete flag is "True"!
 # Set this flag fo False only for folders to keep old deleted versions of notes
 # multi_export = [(export_path, True), (export_path_aux1, False), (export_path_aux2, True)]
@@ -172,7 +181,13 @@ def check_db_modified():
 def export_markdown():
     with sqlite3.connect(bear_db) as conn:
         conn.row_factory = sqlite3.Row
-        query = "SELECT * FROM `ZSFNOTE` WHERE `ZTRASHED` LIKE '0'"
+        if only_archived:
+            query = "SELECT * FROM `ZSFNOTE` WHERE `ZTRASHED` LIKE '0' AND `ZARCHIVED` LIKE '1'"
+        elif include_archived:
+            # Both normal and archived notes
+            query = "SELECT * FROM `ZSFNOTE` WHERE `ZTRASHED` LIKE '0'"
+        else:
+            query = "SELECT * FROM `ZSFNOTE` WHERE `ZTRASHED` LIKE '0' AND `ZARCHIVED` LIKE '0'"
         c = conn.execute(query)
     note_count = 0
     for row in c:
@@ -181,12 +196,17 @@ def export_markdown():
         creation_date = row['ZCREATIONDATE']
         modified = row['ZMODIFICATIONDATE']
         uuid = row['ZUNIQUEIDENTIFIER']
+        archived = row['ZARCHIVED']
         filename = clean_title(title) + date_time_conv(creation_date)
         file_list = []
-        if make_tag_folders:
-            file_list = sub_path_from_tag(temp_path, filename, md_text)
+        if archived == 1:
+            out_path = temp_path + '/_Archived'
         else:
-            file_list.append(os.path.join(temp_path, filename))
+            out_path = temp_path
+        if make_tag_folders:
+            file_list = sub_path_from_tag(out_path, filename, md_text)
+        else:
+            file_list.append(os.path.join(out_path, filename))
         if file_list:
             cre_dt = dt_conv(creation_date)
             mod_dt = dt_conv(modified)
@@ -292,8 +312,13 @@ def sub_path_from_tag(temp_path, filename, md_text):
             tag2 = matches2[0]
             tags.append(tag2)
         if len(tags) == 0:
-            # No tags found, copy to root level only
-            return [os.path.join(temp_path, filename)]
+            # No tags found
+            if untagged_folder_name == '':
+                # copy to root level only
+                return [os.path.join(temp_path, filename)]
+            else:
+                tag = untagged_folder_name
+                tags = [tag]
     else:
         # Only folder for first tag
         match1 =  re.search(pattern1, md_text)
@@ -308,9 +333,14 @@ def sub_path_from_tag(temp_path, filename, md_text):
         elif match2:
             tag = match2.group(1)
         else:
-            # No tags found, copy to root level only
-            return [os.path.join(temp_path, filename)]
+            # No tags found
+            if untagged_folder_name == '':
+                # copy to root level only
+                return [os.path.join(temp_path, filename)]
+            else:
+                tag = untagged_folder_name
         tags = [tag]
+ 
     paths = []
     for tag in tags:
         if tag == '/':
