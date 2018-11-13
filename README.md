@@ -1,8 +1,11 @@
 ## Markdown export and sync of Bear notes
 
-*Version 1.4.2, 2018-11-12 at 17:53 IST* 
+**Version 1.5.0, 2018-11-13 at 16:41 IST** 
 
-*Updated 2018-11-12:* 
+*Updated 2018-11-13:*
+- *Added command line argument help and switches.*
+
+*Updated 2018-11-12:*
 - *Now with export of file attachments (only to .textbundle)*
 - *All untagged notes are now exported to '_Untagged' folder if 'make_tag_folders = True'*
 - *Added choice for exporting with or without archived notes, or only archived.* 

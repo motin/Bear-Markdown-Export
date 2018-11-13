@@ -1,12 +1,44 @@
 # encoding=utf-8
 # python3.6
 # bear_export_sync.py
-# Tested with python 3.6 and Bear 1.6.3 on MacOS 10.14
-# Developed with Visual Studio Code with MS Python Extension.
+
+version = '''
+bear_export_sync.py - markdown export from Bear sqlite database 
+Version 1.5.0, 2018-11-13 at 16:41 IST - github/rovest, rorves@twitter
+Developed on an MBP with Visual Studio Code with MS Python extension.
+Tested with python 3.6 and Bear 1.6.3 on MacOS 10.14'''
+
+help_text = '''
+*** If no arguments supplied: script runs with built in defaults.
+    all arguments separated by one space! (No joining like: -rma allowed)
+    -h  display this Help text.
+    -v  Version info displayed.
+    -o  full Output path from root as next argument!  
+        example: "/users/username/Dropbox/Bear Export" or "~/OneDrive/MyNotes"
+        enclose in " " if spaces in path. ~ = home-folder.
+    -t  Tags to be exported as comma separated list in next argument:
+        mytag,travelinfo,memos,writings
+        enclose in " " if any spaces: "My Essay/in edit,Travel Info,memos/medical"
+    -x  tags to be eXcluded as comma separated list in next argument:
+        health,private,secret
+        use either -e or -t, not both!  
+    -r  force Run - runs even if no changes in db since last run.
+    -p  export as markdown files with links to common image rePository, no textbundles.
+        all images are copied to this 'BearAssetsImages' folder on the root of export_path.
+ 
+*** The following functions are ON by default, use these swithces to turn them OFF:
+    -f  do not make tag Folders: all notes flat on root.
+    -m  do not export to Multiple tag folders: only use first tag in note.
+    -c  do not hide tags in html Comments: `<!-- #mytag -->`
+    -a  do not include Archived notes (under '_Archived' sub folder)
+    -i  do not Include file attachments.
+    -b  du not export as textBundles: all notes as regular markdown
+    -y  do not export as hYbrids: all notes will be exported as textbundles even if no images.
+'''
 
 '''
-# Markdown export from Bear sqlite database 
-Version 1.4.2, 2018-11-12 at 17:53 IST
+=================================================================================================
+Updated 2018-11-13 Added command line argument help and switches.
 
 Updated 2018-11-12 Added export of file attachments (when 'export_as_textbundles = True')
         - All untagged notes are now exported to '_Untagged' folder if 'make_tag_folders = True'
@@ -18,8 +50,6 @@ Updated 2018-10-30 Uses newer rsync from Carbon Copy Cloner (if present) to pres
         - Fixed escaping of spaces in image names from iPhone camera taken directly in Bear.
 
 Updated 2018-10-17 with new Bear path: 'Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data'
-
-github/rovest, rorves@twitter
 
 See also: bear_import.py for auto import to bear script.
 
@@ -74,11 +104,12 @@ export_with_files = True  # Only used if `export_as_textbundles = True`
                           # Sync/Import back to Bear will loose any externally added file attachments,
                           # as they are not part of textbundle spec.
 export_image_repository = False  # Export all notes as md but link images to 
-                                 # a common repository exported to: `assets_path` 
+                                 # a common repository exported to: `assets_images_path` 
                                  # Only used if `export_as_textbundles = False`
 
 my_sync_service = 'Dropbox'  # Change 'Dropbox' to 'Box', 'Onedrive',
     # or whatever folder of sync service you need.
+force_run = False
 
 # NOTE! Your user 'HOME' path and '/BearNotes' is added below!
 # NOTE! So do not change anything below here!!!
@@ -93,6 +124,7 @@ import time
 import shutil
 import fnmatch
 import json
+import sys
 
 HOME = os.getenv('HOME', '')
 
@@ -111,26 +143,27 @@ multi_export = [(export_path, True)]  # only one folder output here.
 # Set this flag fo False only for folders to keep old deleted versions of notes
 # multi_export = [(export_path, True), (export_path_aux1, False), (export_path_aux2, True)]
 
-temp_path = os.path.join(HOME, 'Temp', 'BearExportTemp')  # NOTE! Do not change the "BearExportTemp" folder name!!!
 
 bear_db = os.path.join(HOME, 'Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data/database.sqlite')
 
-sync_backup = os.path.join(HOME, my_sync_service, 'BearSyncBackup') # Backup of original note before sync to Bear.
+temp_path = os.path.join(HOME, 'BearTemp', 'BearExportTemp')  # NOTE! Do not change the "BearExportTemp" folder name!!!
+sync_backup = os.path.join(HOME, 'BearTemp', 'BearSyncBackup') # Backup of original note before sync to Bear.
 log_file = os.path.join(sync_backup, 'bear_export_sync_log.txt')
 
 # Paths used in image exports:
 bear_image_path = os.path.join(HOME, 
          'Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data/Local Files/Note Images')
-assets_path = os.path.join(HOME, export_path, 'BearImages')
 bear_file_path = os.path.join(HOME, 
          'Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data/Local Files/Note Files')
+assets_images_path = '' 
+assets_files_path = ''
 
 sync_ts = '.sync-time.log'
 export_ts = '.export-time.log'
 
 sync_ts_file = os.path.join(export_path, sync_ts)
-sync_ts_file_temp = os.path.join(temp_path, sync_ts)
 export_ts_file_exp = os.path.join(export_path, export_ts)
+sync_ts_file_temp = os.path.join(temp_path, sync_ts)
 export_ts_file = os.path.join(temp_path, export_ts)
 
 gettag_sh = os.path.join(HOME, 'temp/gettag.sh')
@@ -147,20 +180,132 @@ else:
     
 
 def main():
+    if not check_sysargs():
+        return
+    if export_image_repository:
+        global assets_images_path, assets_files_path
+        assets_images_path = os.path.join(HOME, export_path, 'BearAssetsImages')
+        assets_files_path = os.path.join(HOME, export_path, 'BearAssetsFiles')
     init_gettag_script()
     sync_md_updates()
-    if check_db_modified():
+    if check_db_modified() or force_run:
         delete_old_temp_files()
         note_count = export_markdown()
         write_time_stamp()
         rsync_files_from_temp()
         if export_image_repository and not export_as_textbundles:
-            copy_bear_images()
+            copy_bear_images_and_files()
         # notify('Export completed')
         write_log(str(note_count) + ' notes exported to: ' + export_path)
         print(str(note_count) + ' notes exported to: ' + export_path)        
     else:
         print('*** No notes needed exports')
+
+
+def check_sysargs():
+    global force_run, make_tag_folders, multi_tag_folders, hide_tags_in_comment_block
+    global include_archived, export_as_textbundles, export_as_hybrids
+    global export_with_files, my_sync_service, export_image_repository
+    global export_path, sync_ts_file, export_ts_file_exp
+    global multi_export, only_export_these_tags, no_export_tags
+
+    if len(sys.argv) == 1:
+        # No arguments supplied, runs script with built in defaults.
+        return True
+        # # Or with no arguments supplied, display help:
+        # print(version)
+        # print(help_text)
+        # return False
+    i = 0
+    get_file = False
+    include_tags = False
+    exclude_tags = False
+
+    for arg in sys.argv:
+        if i == 0:
+            i += 1
+            continue
+        if arg == '-h':
+            print(version)
+            print(help_text)
+            return False
+        elif arg == '-v':
+            print(version)
+            return False
+        elif get_file:
+            if arg.startswith('/') and len(arg) > 2:
+                export_path = arg
+            elif arg.startswith('~/' and len(arg) > 3):
+                export_path = arg.replace('~', HOME)
+            else:
+                print(err_msg1)
+                return False
+            if not os.path.exists(export_path):
+                os.makedirs(export_path)
+            sync_ts_file = os.path.join(export_path, sync_ts)
+            export_ts_file_exp = os.path.join(export_path, export_ts)
+            multi_export = [(export_path, True)]
+            get_file = False
+        elif arg == '-r':
+            force_run = True
+        elif arg == '-f':
+            make_tag_folders = False
+        elif arg == '-m':
+            multi_tag_folders = False
+        elif arg == '-c':
+            hide_tags_in_comment_block = False
+        elif arg == '-a':
+            include_archived = False
+        elif arg == '-b':
+            export_as_textbundles = False
+        elif arg == '-y':
+            export_as_hybrids = False
+        elif arg == '-i':
+            export_with_files = False
+        elif arg == '-p':
+            export_image_repository = True
+            export_as_textbundles = False
+        elif arg == '-o':
+            get_file = True
+        elif arg == '-t':
+            include_tags = True
+        elif arg == '-x':
+            exclude_tags = True            
+        elif include_tags:
+            if arg[0] in '-~/':
+                print(err_msg2)
+                return False
+            only_export_these_tags = arg.split(',')
+            include_tags = False
+        elif exclude_tags:
+            if arg[0] in '-~/':
+                print(err_msg2)
+                return False
+            no_export_tags = arg.split(',')
+            exclude_tags = False
+        else:
+            print('### Illegal argument! Use with -h for help!')
+        i += 1
+    if get_file:
+        print(err_msg1)
+        return False
+    if include_tags or exclude_tags:
+        print(err_msg2)
+        return False
+    return True
+
+err_msg1 = '''*** Error in path name!
+    -o  
+        Supply full output path from root as next argument!  
+        Example: "/users/username/Dropbox/Bear Export" or "~/OneDrive/MyNotes"
+        Enclose in " " if spaces in path and ~ = home-folder'''
+
+err_msg2 = '''*** Error in tag list argument:
+    -t or -e    
+        Supply tab separated list of tags as next argument!
+        Examples:
+        "My Essay/in edit,Travel Info,memos/medical"
+        health,private,secret'''
 
 
 def write_log(message):
@@ -203,7 +348,9 @@ def export_markdown():
         filename = clean_title(title) + date_time_conv(creation_date)
         file_list = []
         if archived == 1:
-            out_path = temp_path + '/_Archived'
+            out_path = os.path.join(temp_path, '_Archived')
+            # If you want a fixed local path for Archive export, un-comment line below:
+            # out_path = os.path.join(HOME, 'Bear Archive')  # NOTE! Notes deleted from archive will not be deleted here!
         else:
             out_path = temp_path
         if make_tag_folders:
@@ -224,7 +371,7 @@ def export_markdown():
                     else:
                         write_file(filepath + '.md', md_text, mod_dt, cre_dt)
                 elif export_image_repository:
-                    md_proc_text = process_image_links(md_text, filepath)
+                    md_proc_text = process_image_and_file_links(md_text, filepath)
                     write_file(filepath + '.md', md_proc_text, mod_dt, cre_dt)
                 else:
                     write_file(filepath + '.md', md_text, mod_dt, cre_dt)
@@ -232,8 +379,11 @@ def export_markdown():
 
 
 def check_image_hybrid(md_text):
+    # Hybrid export: textbundle if note contains images or files, otherwise regular markdown file. 
     if export_as_hybrids:
         if re.search(r'\[image:(.+?)\]', md_text):
+            return True
+        elif export_with_files and re.search(r'\[file:(.+?)\]', md_text):
             return True
         else:
             return False
@@ -265,13 +415,13 @@ def make_text_bundle(md_text, filepath, mod_dt, cre_dt):
         target = os.path.join(assets, new_name)
         try:
             shutil.copy2(source, target)
-            # Escape spaces in dates on images taken with iPhone camera direct in Bear:
+            # Escape spaces in dates on images (taken with iPhone camera direct in Bear):
             if ' ' in image:
                 md_text = md_text.replace('[image:' + image, '[image:' + image.replace(' ', '%20'))
         except:
             print("File missing:", source)
-            pass
-    md_text = re.sub(r'\[image:(.+?)/(.+?)\]', r'![](assets/\1_\2)', md_text)
+    if matches:
+        md_text = re.sub(r'\[image:(.+?)/(.+?)\]', r'![](assets/\1_\2)', md_text)
 
     if export_with_files:
         md_text = include_files(md_text, assets)
@@ -291,13 +441,13 @@ def include_files(md_text, assets):
             shutil.copy2(source, target)
         except:
             print("File missing:", source)
-            pass
-    md_text = re.sub(r'\[file:(.+?)/(.+?)\]', r'[file: \2](assets/\1_\2)', md_text)
-    # Escape spaces in filenames:
-    matches = re.findall(r'\[file: .+?\]\(assets/(.*?)\)', md_text)
-    for file in matches:
-        if ' ' in file:
-            md_text = md_text.replace('(assets/' + file, '(assets/' + file.replace(' ', '%20'))
+    if matches:
+        md_text = re.sub(r'\[file:(.+?)/(.+?)\]', r'[File: \2](assets/\1_\2)', md_text)
+        # Escape spaces in filename link:
+        matches = re.findall(r'\[File: .+?\]\(assets/(.*?)\)', md_text)
+        for file in matches:
+            if ' ' in file:
+                md_text = md_text.replace('(assets/' + file, '(assets/' + file.replace(' ', '%20'))
     return md_text
 
 
@@ -373,14 +523,29 @@ def sub_path_from_tag(temp_path, filename, md_text):
     return paths
 
 
-def process_image_links(md_text, filepath):
+def process_image_and_file_links(md_text, filepath):
     '''
-    Bear image links converted to MD links
+    Bear image links converted to MD image links and files to MD url links
+    For image and file repositories only
     '''
     root = filepath.replace(temp_path, '')
     level = len(root.split('/')) - 2
     parent = '../' * level
-    md_text = re.sub(r'\[image:(.+?)\]', r'![](' + parent + r'BearImages/\1)', md_text)
+
+    md_text = re.sub(r'\[image:(.+?)\]', r'![](' + parent + r'BearAssetsImages/\1)', md_text)
+    matches = re.findall(r'!\[\]\((\.\./)*BearAssetsImages/(.*?)\)', md_text)
+    for groups in matches:
+        file = groups[1]
+        if ' ' in file:
+            md_text = md_text.replace('BearAssetsImages/' + file + ')', 'BearAssetsImages/' + file.replace(' ', '%20') + ')')
+
+    if export_with_files:
+        md_text = re.sub(r'\[file:(.+?)/(.+?)\]', r'[File: \2](' + parent + r'BearAssetsFiles/\1/\2)', md_text)
+        matches = re.findall(r'\[File: .+?\]\((\.\./)*BearAssetsFiles/(.*?)\)', md_text)
+        for groups in matches:
+            file = groups[1]
+            if ' ' in file:
+                md_text = md_text.replace('BearAssetsFiles/' + file + ')', 'BearAssetsFiles/' + file.replace(' ', '%20') + ')')
     return md_text
 
 
@@ -388,41 +553,51 @@ def restore_image_links(md_text):
     '''
     MD image links restored back to Bear links
     '''
-    if not re.search(r'!\[.*?\]\(assets/.+?\)', md_text):
-        # No image links in note, return unchanged:
-        return md_text
-    if export_as_textbundles:
+    restored = False
+    if export_as_textbundles and re.search(r'!\[.*?\]\(assets/.+?\)', md_text):
         md_text = re.sub(r'!\[(.*?)\]\(assets/(.+?)_(.+?)( ".+?")?\) ?', r'[image:\2/\3]\4 \1', md_text)
+        restored = True
+    elif export_image_repository and re.search(r'!\[.*?\]\((\.\./)*BearAssetsImages/.+?\)', md_text):
+        md_text = re.sub(r'!\[\]\((\.\./)*BearAssetsImages/(.+?)\)', r'[image:\2]', md_text)
+        restored = True
+    if restored:
+        # Unescape %20 back to spaces in filenames:
         matches = re.findall(r'\[image:(.+?)\]', md_text)
         for file in matches:
             if '%20' in file:
                 md_text = md_text.replace('[image:' + file, '[image:' + file.replace('%20', ' '))       
-    elif export_image_repository:
-        # md_text = re.sub(r'\[image:(.+?)\]', r'![](../assets/\1)', md_text)
-        md_text = re.sub(r'!\[\]\((\.\./)*BearImages/(.+?)\)', r'[image:\2]', md_text)
     return md_text
 
 
 def restore_file_links(md_text):
     '''
-    MD file links restored back to Bear links
+    MD file links restored back to Bear links.
     '''
-    if not re.search(r'\[file: .*?\]\(assets/.+?\)', md_text):
-        # No file links in note, return unchanged:
-        return md_text
-    if export_as_textbundles:
-        md_text = re.sub(r'\[file: (.*?)\]\(assets/(.+?)_(.+?)( ".+?")?\) ?', r'[file:\2/\3]', md_text)
+    restored = False
+    if export_as_textbundles and re.search(r'\[File: .*?\]\(assets/.+?\)', md_text):
+        md_text = re.sub(r'\[File: (.*?)\]\(assets/(.+?)_(.+?)( ".+?")?\) ?', r'[file:\2/\3]', md_text)
+        restored = True
+    elif export_image_repository and re.search(r'\[File: .*?\]\(assets/.+?\)', md_text):
+        md_text = re.sub(r'\[File: .*?\]\((\.\./)*BearAssetsFiles/(.+?)\)', r'[file:\2]', md_text)
+        restored = True
+    if restored:
+        # Unescape %20 back to spaces in filenames:
         matches = re.findall(r'\[file:(.+?)\]', md_text)
         for file in matches:
             if '%20' in file:
-                md_text = md_text.replace('[file:' + file, '[file:' + file.replace('%20', ' '))       
+                md_text = md_text.replace('[file:' + file, '[file:' + file.replace('%20', ' '))    
     return md_text
 
 
-def copy_bear_images():
-    # Image files copied to a common image repository
+def copy_bear_images_and_files():
+    # Images and files copied to common repositories
+    # This copies every image or file, regardless of how many notes are exported
+    # Only used if export_image_repository = True.
     subprocess.call(['rsync', '-r', '-t', '--delete', 
-                    bear_image_path + "/", assets_path])
+                    bear_image_path + "/", assets_images_path])
+    if export_with_files:
+        subprocess.call(['rsync', '-r', '-t', '--delete', 
+                        bear_file_path + "/", assets_files_path])
 
 
 def write_time_stamp():
@@ -538,11 +713,21 @@ def rsync_files_from_temp():
         if not os.path.exists(dest_path):
             os.makedirs(dest_path)
         if delete:
+            if export_with_files and export_image_repository:
+                exclude_assets_files = 'BearAssetsFiles/'
+            else:
+                exclude_assets_files = ''
+            if export_image_repository:
+                exclude_assets_images = 'BearAssetsImages/'
+            else:
+                exclude_assets_images = ''
+            
             # subprocess.call(['rsync',
             # Use newer rsync v. 3.0.6 from Carbon Copy Cloner with --crtimes to preserve cre-time
             subprocess.call([rsync_path, crswitch,
                              '-r', '-t', '--delete',
-                             '--exclude', 'BearImages/',
+                             '--exclude', exclude_assets_images,
+                             '--exclude', exclude_assets_files,
                              '--exclude', '.Ulysses*',
                              '--exclude', '*.Ulysses_Public_Filter',
                              temp_path + "/", dest_path])
