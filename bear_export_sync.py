@@ -4,20 +4,20 @@
 
 version = '''
 bear_export_sync.py - markdown export from Bear sqlite database 
-Version 1.5.3, 2018-11-14 at 07:56 IST - github/rovest, rorves@twitter
+Version 1.5.4, 2018-11-14 at 15:17 IST - github/rovest, rorves@twitter
 Developed on an MBP with Visual Studio Code with MS Python extension.
 Tested with python 3.6 and Bear 1.6.3 on MacOS 10.14'''
 
 help_text = '''
-*** If no arguments, this help is displayed. (Use '-d' alone for only defaults)
+*** If no arguments, this help is displayed. (Use '-d' for internal defaults only)
     all arguments separated by one space! (No joining like: -rma allowed)
     -h  display this Help text.
     -v  Version info displayed.
     -d  run with Default settings (as in earlier versions), use no other arguments.
-    -o  full Output path from root as next argument!  
+    -o  full Output export path from root as next argument!  
         example: "/users/username/Dropbox/Bear Export" or "~/OneDrive/MyNotes"
-        enclose in " " if spaces in path. ~ = home-folder.
-    -t  Tags to be exported as comma separated list in next argument:
+        enclose in " " if spaces in path. Use ~ for home-folder.
+    -t  Tags to be exported, as comma separated list of tags in next argument:
         mytag,travelinfo,memos,writings
         enclose in " " if any spaces: "My Essay/in edit,Travel Info,memos/medical"
     -x  tags to be eXcluded as comma separated list in next argument:
@@ -27,8 +27,10 @@ help_text = '''
     -p  export as regular markdown files, but with links to images and files 
         that are copied to a rePository (not textbundles) in two folders: 
         'BearAssetsImages' and 'BearAssetsFiles' on the root of export_path.
- 
+    -R  export all notes in RAW format as in Bear DB: markdown unchanged.
+
 *** The following functions are ON by default, use these swithces to turn them OFF:
+    -s  do not Sync changes back to Bear - export only.
     -u  do not use _Untagged folder: put untagged notes flat on root.
     -f  do not make tag Folders: all notes flat on root.
     -m  do not export same note to Multiple tag folders: only use first tag in note.
@@ -41,16 +43,23 @@ help_text = '''
 
 '''
 =================================================================================================
-Updated 2018-11-13 Added command line argument help and switches.
+Updated 2018-11-14 
+    - Added command line arguments: -R for 'RAW' markdown export, and -s for no Sync.
+    - Included some other improvements from pull requests.
 
-Updated 2018-11-12 Added export of file attachments (when 'export_as_textbundles = True')
-        - All untagged notes are now exported to '_Untagged' folder if 'make_tag_folders = True'
-        - Added choice for exporting with or without archived notes, or only archived.
-        - Fixed escaping of spaces for sync import back to Bear.
-        - Fixed multiple copying if same tag is repeated in same note. Case sensitive though!
+Updated 2018-11-13 
+    - Added command line argument help and switches.
 
-Updated 2018-10-30 Uses newer rsync from Carbon Copy Cloner (if present) to preserve file-creation-time.  
-        - Fixed escaping of spaces in image names from iPhone camera taken directly in Bear.
+Updated 2018-11-12 
+    - Added export of file attachments (when 'export_as_textbundles = True')
+    - All untagged notes are now exported to '_Untagged' folder if 'make_tag_folders = True'
+    - Added choice for exporting with or without archived notes, or only archived.
+    - Fixed escaping of spaces for sync import back to Bear.
+    - Fixed multiple copying if same tag is repeated in same note. Case sensitive though!
+
+Updated 2018-10-30 
+    - Uses newer rsync from Carbon Copy Cloner (if present) to preserve file-creation-time.  
+    - Fixed escaping of spaces in image names from iPhone camera taken directly in Bear.
 
 Updated 2018-10-17 with new Bear path: 'Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data'
 
@@ -103,12 +112,14 @@ only_archived = False  # Exports only archived notes
 export_as_textbundles = True  # Exports as Textbundles with images included
 export_as_hybrids = True  # Exports as .textbundle only if images included, otherwise as .md
                           # Only used if `export_as_textbundles = True`
+export_raw = False        # export all notes in Raw format as in Bear DB, no changes in md formatting. 
 export_with_files = True  # Only used if `export_as_textbundles = True`
                           # Sync/Import back to Bear will loose any externally added file attachments,
                           # as they are not part of textbundle spec.
 export_image_repository = False  # Export all notes as md but link images to 
                                  # a common repository exported to: `assets_images_path` 
                                  # Only used if `export_as_textbundles = False`
+do_sync_back_to_bear = True  # Syncs any changes in exported files back to Bear
 
 my_sync_service = 'Dropbox'  # Change 'Dropbox' to 'Box', 'Onedrive',
     # or whatever folder of sync service you need.
@@ -145,7 +156,6 @@ multi_export = [(export_path, True)]  # only one folder output here.
 # NOTE! All files in export path not in Bear will be deleted if delete flag is "True"!
 # Set this flag fo False only for folders to keep old deleted versions of notes
 # multi_export = [(export_path, True), (export_path_aux1, False), (export_path_aux2, True)]
-
 
 bear_db = os.path.join(HOME, 'Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data/database.sqlite')
 
@@ -190,7 +200,8 @@ def main():
         assets_images_path = os.path.join(HOME, export_path, 'BearAssetsImages')
         assets_files_path = os.path.join(HOME, export_path, 'BearAssetsFiles')
     init_gettag_script()
-    sync_md_updates()
+    if do_sync_back_to_bear:
+        sync_md_updates()
     if check_db_modified() or force_run:
         delete_old_temp_files()
         note_count = export_markdown()
@@ -207,10 +218,10 @@ def main():
 
 def check_sysargs():
     global force_run, make_tag_folders, multi_tag_folders, hide_tags_in_comment_block
-    global include_archived, export_as_textbundles, export_as_hybrids
+    global include_archived, export_as_textbundles, export_as_hybrids, do_sync_back_to_bear
     global export_with_files, my_sync_service, export_image_repository
     global export_path, sync_ts_file, export_ts_file_exp, untagged_folder_name
-    global multi_export, only_export_these_tags, no_export_tags
+    global multi_export, only_export_these_tags, no_export_tags, export_raw
     arg_count = len(sys.argv) - 1
     if arg_count == 0:
         # No arguments supplied: display help:
@@ -254,6 +265,8 @@ def check_sysargs():
             get_file = False
         elif arg == '-r':
             force_run = True
+        elif arg == '-s':
+            do_sync_back_to_bear = False
         elif arg == '-u':
             untagged_folder_name = ''
         elif arg == '-f':
@@ -268,6 +281,8 @@ def check_sysargs():
             export_as_textbundles = False
         elif arg == '-y':
             export_as_hybrids = False
+        elif arg == '-R':
+            export_raw = True            
         elif arg == '-i':
             export_with_files = False
         elif arg == '-p':
@@ -360,7 +375,7 @@ def export_markdown():
         if archived == 1:
             out_path = os.path.join(temp_path, '_Archived')
             # If you want a fixed local path for Archive export, un-comment line below:
-            # out_path = os.path.join(HOME, 'Bear Archive')  # NOTE! Notes deleted from archive will not be deleted here!
+            # out_path = os.path.join(HOME, 'BearArchive')  # NOTE! Notes deleted from archive will not be deleted here!
         else:
             out_path = temp_path
         if make_tag_folders:
@@ -370,12 +385,15 @@ def export_markdown():
         if file_list:
             cre_dt = dt_conv(creation_date)
             mod_dt = dt_conv(modified)
-            md_text = hide_tags(md_text)
-            md_text += '\n\n<!-- {BearID:' + uuid + '} -->\n'
+            if not export_raw:
+                md_text = hide_tags(md_text)
+                md_text += '\n\n<!-- {BearID:' + uuid + '} -->\n'
             for filepath in file_list:
                 note_count += 1
                 # print(filepath)
-                if export_as_textbundles:
+                if export_raw:
+                    write_file(filepath + '.md', md_text, mod_dt, cre_dt)
+                elif export_as_textbundles:
                     if check_image_hybrid(md_text):
                         make_text_bundle(md_text, filepath, mod_dt, cre_dt)                        
                     else:
@@ -478,6 +496,8 @@ def sub_path_from_tag(temp_path, filename, md_text):
                 tags.append(tag2)
         if len(tags) == 0:
             # No tags found
+            if only_export_these_tags:
+                return []
             if untagged_folder_name == '':
                 # copy to root level only
                 return [os.path.join(temp_path, filename)]
@@ -497,6 +517,8 @@ def sub_path_from_tag(temp_path, filename, md_text):
             tag = match1.group(1)
         elif match2:
             tag = match2.group(1)
+        elif only_export_these_tags:
+            return []
         else:
             # No tags found
             if untagged_folder_name == '':

@@ -1,6 +1,10 @@
 ## Markdown export and sync of Bear notes
 
-**Version 1.5.3, 2018-11-14 at 07:56 IST** 
+**Version 1.5.4, 2018-11-14 at 15:17 IST** 
+
+*Updated 2018-11-14:*
+- *Added command line arguments: -R for 'RAW' markdown export, and -s for no Sync.*
+- *Included some other improvements from pull requests.*
 
 *Updated 2018-11-13:*
 - *Added command line argument help and switches.*
