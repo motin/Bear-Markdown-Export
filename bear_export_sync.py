@@ -27,7 +27,8 @@ help_text = '''
     -p  export as regular markdown files, but with links to images and files 
         that are copied to a rePository (not textbundles) in two folders: 
         'BearAssetsImages' and 'BearAssetsFiles' on the root of export_path.
-    -R  export all notes in RAW format as in Bear DB: markdown unchanged.
+    -R  export all notes in Raw format as Bear does, no changes to md formatting,
+        use with -b to export as plain markdown without images or files.
 
 *** The following functions are ON by default, use these swithces to turn them OFF:
     -s  do not Sync changes back to Bear - export only.
@@ -112,7 +113,7 @@ only_archived = False  # Exports only archived notes
 export_as_textbundles = True  # Exports as Textbundles with images included
 export_as_hybrids = True  # Exports as .textbundle only if images included, otherwise as .md
                           # Only used if `export_as_textbundles = True`
-export_raw = False        # export all notes in Raw format as in Bear DB, no changes in md formatting. 
+export_raw = False        # export all notes in Raw format as Bear does, no changes to md formatting.
 export_with_files = True  # Only used if `export_as_textbundles = True`
                           # Sync/Import back to Bear will loose any externally added file attachments,
                           # as they are not part of textbundle spec.
@@ -391,9 +392,7 @@ def export_markdown():
             for filepath in file_list:
                 note_count += 1
                 # print(filepath)
-                if export_raw:
-                    write_file(filepath + '.md', md_text, mod_dt, cre_dt)
-                elif export_as_textbundles:
+                if export_as_textbundles:
                     if check_image_hybrid(md_text):
                         make_text_bundle(md_text, filepath, mod_dt, cre_dt)                        
                     else:
