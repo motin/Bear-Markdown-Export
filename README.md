@@ -1,6 +1,6 @@
 ## Markdown export and sync of Bear notes
 
-**Version 1.5.0, 2018-11-13 at 16:41 IST** 
+**Version 1.5.3, 2018-11-14 at 07:56 IST** 
 
 *Updated 2018-11-13:*
 - *Added command line argument help and switches.*

@@ -4,15 +4,16 @@
 
 version = '''
 bear_export_sync.py - markdown export from Bear sqlite database 
-Version 1.5.0, 2018-11-13 at 16:41 IST - github/rovest, rorves@twitter
+Version 1.5.3, 2018-11-14 at 07:56 IST - github/rovest, rorves@twitter
 Developed on an MBP with Visual Studio Code with MS Python extension.
 Tested with python 3.6 and Bear 1.6.3 on MacOS 10.14'''
 
 help_text = '''
-*** If no arguments supplied: script runs with built in defaults.
+*** If no arguments, this help is displayed. (Use '-d' alone for only defaults)
     all arguments separated by one space! (No joining like: -rma allowed)
     -h  display this Help text.
     -v  Version info displayed.
+    -d  run with Default settings (as in earlier versions), use no other arguments.
     -o  full Output path from root as next argument!  
         example: "/users/username/Dropbox/Bear Export" or "~/OneDrive/MyNotes"
         enclose in " " if spaces in path. ~ = home-folder.
@@ -23,17 +24,19 @@ help_text = '''
         health,private,secret
         use either -e or -t, not both!  
     -r  force Run - runs even if no changes in db since last run.
-    -p  export as markdown files with links to common image rePository, no textbundles.
-        all images are copied to this 'BearAssetsImages' folder on the root of export_path.
+    -p  export as regular markdown files, but with links to images and files 
+        that are copied to a rePository (not textbundles) in two folders: 
+        'BearAssetsImages' and 'BearAssetsFiles' on the root of export_path.
  
 *** The following functions are ON by default, use these swithces to turn them OFF:
+    -u  do not use _Untagged folder: put untagged notes flat on root.
     -f  do not make tag Folders: all notes flat on root.
-    -m  do not export to Multiple tag folders: only use first tag in note.
-    -c  do not hide tags in html Comments: `<!-- #mytag -->`
+    -m  do not export same note to Multiple tag folders: only use first tag in note.
+    -c  do not hide tags in html Comments: `<!-- #mytag -->`, but just plain `#mytag`
     -a  do not include Archived notes (under '_Archived' sub folder)
     -i  do not Include file attachments.
-    -b  du not export as textBundles: all notes as regular markdown
-    -y  do not export as hYbrids: all notes will be exported as textbundles even if no images.
+    -b  du not export as textBundles: all notes as regular markdown, no images or files.
+    -y  do not export as hYbrid: all notes will be exported as textbundles even if no images.
 '''
 
 '''
@@ -206,26 +209,29 @@ def check_sysargs():
     global force_run, make_tag_folders, multi_tag_folders, hide_tags_in_comment_block
     global include_archived, export_as_textbundles, export_as_hybrids
     global export_with_files, my_sync_service, export_image_repository
-    global export_path, sync_ts_file, export_ts_file_exp
+    global export_path, sync_ts_file, export_ts_file_exp, untagged_folder_name
     global multi_export, only_export_these_tags, no_export_tags
-
-    if len(sys.argv) == 1:
-        # No arguments supplied, runs script with built in defaults.
-        return True
-        # # Or with no arguments supplied, display help:
-        # print(version)
-        # print(help_text)
-        # return False
+    arg_count = len(sys.argv) - 1
+    if arg_count == 0:
+        # No arguments supplied: display help:
+        print(version)
+        print(help_text)
+        return False
     i = 0
     get_file = False
     include_tags = False
     exclude_tags = False
-
+    time_stamp = datetime.datetime.now().strftime("%Y-%m-%d at %H:%M:%S")
+    print(time_stamp, sys.argv)
     for arg in sys.argv:
         if i == 0:
             i += 1
             continue
-        if arg == '-h':
+        if arg == '-d':
+            if arg_count == 1:
+                print('*** Running with default internal settings ...')
+                return True
+        elif arg == '-h':
             print(version)
             print(help_text)
             return False
@@ -248,6 +254,8 @@ def check_sysargs():
             get_file = False
         elif arg == '-r':
             force_run = True
+        elif arg == '-u':
+            untagged_folder_name = ''
         elif arg == '-f':
             make_tag_folders = False
         elif arg == '-m':
@@ -285,6 +293,7 @@ def check_sysargs():
             exclude_tags = False
         else:
             print('### Illegal argument! Use with -h for help!')
+            return False
         i += 1
     if get_file:
         print(err_msg1)
@@ -294,12 +303,13 @@ def check_sysargs():
         return False
     return True
 
+
 err_msg1 = '''*** Error in path name!
     -o  
         Supply full output path from root as next argument!  
         Example: "/users/username/Dropbox/Bear Export" or "~/OneDrive/MyNotes"
         Enclose in " " if spaces in path and ~ = home-folder'''
-
+        
 err_msg2 = '''*** Error in tag list argument:
     -t or -e    
         Supply tab separated list of tags as next argument!
@@ -577,7 +587,7 @@ def restore_file_links(md_text):
     if export_as_textbundles and re.search(r'\[File: .*?\]\(assets/.+?\)', md_text):
         md_text = re.sub(r'\[File: (.*?)\]\(assets/(.+?)_(.+?)( ".+?")?\) ?', r'[file:\2/\3]', md_text)
         restored = True
-    elif export_image_repository and re.search(r'\[File: .*?\]\(assets/.+?\)', md_text):
+    elif export_image_repository and re.search(r'\[File: .*?\]\((\.\./)*BearAssetsFiles/.+?\)', md_text):
         md_text = re.sub(r'\[File: .*?\]\((\.\./)*BearAssetsFiles/(.+?)\)', r'[file:\2]', md_text)
         restored = True
     if restored:
@@ -609,19 +619,19 @@ def write_time_stamp():
 
 
 def hide_tags(md_text):
-    # Hide tags from being seen as H1, by placing `period+space` at start of line:
     if hide_tags_in_comment_block:
         md_text =  re.sub(r'(\n)[ \t]*(\#[\w.].+)', r'\1<!-- \2 -->', md_text)
     else:
+        # Hide tags from being seen as H1, by placing `period+space` at start of line:
         md_text =  re.sub(r'(\n)[ \t]*(\#[\w.]+)', r'\1. \2', md_text)
     return md_text
 
 
 def restore_tags(md_text):
-    # Tags back to normal Bear tags, stripping the `period+space` at start of line:
-    # if hide_tags_in_comment_block:
+    # Tags back to normal Bear tags:
+    # stripping off html comment:
     md_text =  re.sub(r'(\n)<!--[ \t]*(\#[\w.].+?) -->', r'\1\2', md_text)
-    # else:
+    # stripping off the `period+space` at start of line:
     md_text =  re.sub(r'(\n)\.[ \t]*(\#[\w.]+)', r'\1\2', md_text)
     return md_text
 
@@ -725,14 +735,14 @@ def rsync_files_from_temp():
             # subprocess.call(['rsync',
             # Use newer rsync v. 3.0.6 from Carbon Copy Cloner with --crtimes to preserve cre-time
             subprocess.call([rsync_path, crswitch,
-                             '-r', '-t', '--delete',
+                             '-r', '-t', '--delete', '-q',
                              '--exclude', exclude_assets_images,
                              '--exclude', exclude_assets_files,
                              '--exclude', '.Ulysses*',
                              '--exclude', '*.Ulysses_Public_Filter',
                              temp_path + "/", dest_path])
         else:
-            subprocess.call(['rsync', '-r', '-t',
+            subprocess.call(['rsync', '-r', '-t', '-q',
                             temp_path + "/", dest_path])
 
 
