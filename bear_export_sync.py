@@ -4,7 +4,7 @@
 
 version = '''
 bear_export_sync.py - markdown export from Bear sqlite database 
-Version 1.5.4, 2018-11-14 at 15:17 IST - github/rovest, rorves@twitter
+Version 1.5.5, 2018-11-15 at 10:41 IST - github/rovest, rorves@twitter
 Developed on an MBP with Visual Studio Code with MS Python extension.
 Tested with python 3.6 and Bear 1.6.3 on MacOS 10.14'''
 
@@ -40,10 +40,16 @@ help_text = '''
     -i  do not Include file attachments.
     -b  du not export as textBundles: all notes as regular markdown, no images or files.
     -y  do not export as hYbrid: all notes will be exported as textbundles even if no images.
+    -l  do not write to Log-file.
+    -w  export Without tags: All tags are stripped from text.
 '''
 
 '''
 =================================================================================================
+Updated 2018-11-15
+    - Added argument: '-l' do not write to Log-file.
+    - Added function and argument: '-w' export Without tags: All tags are stripped from text.
+
 Updated 2018-11-14 
     - Added command line arguments: -R for 'RAW' markdown export, and -s for no Sync.
     - Included some other improvements from pull requests.
@@ -98,6 +104,8 @@ untagged_folder_name = '_Untagged'  # Only works if 'make_tag_folders = True'
 multi_tag_folders = True  # Copies notes to all 'tag-paths' found in note!
                           # Only active if `make_tag_folders = True`
 hide_tags_in_comment_block = True  # Hide tags in HTML comments: `<!-- #mytag -->`
+export_without_tags = False
+write_log = True
 
 # The following two lists are more or less mutually exclusive, so use only one of them.
 # (You can use both if you have some nested tags where that makes sense)
@@ -220,9 +228,9 @@ def main():
 def check_sysargs():
     global force_run, make_tag_folders, multi_tag_folders, hide_tags_in_comment_block
     global include_archived, export_as_textbundles, export_as_hybrids, do_sync_back_to_bear
-    global export_with_files, my_sync_service, export_image_repository
+    global export_with_files, my_sync_service, export_image_repository, export_without_tags
     global export_path, sync_ts_file, export_ts_file_exp, untagged_folder_name
-    global multi_export, only_export_these_tags, no_export_tags, export_raw
+    global multi_export, only_export_these_tags, no_export_tags, export_raw, write_log
     arg_count = len(sys.argv) - 1
     if arg_count == 0:
         # No arguments supplied: display help:
@@ -294,7 +302,11 @@ def check_sysargs():
         elif arg == '-t':
             include_tags = True
         elif arg == '-x':
-            exclude_tags = True            
+            exclude_tags = True
+        elif arg == '-w':
+            export_without_tags = True       
+        elif arg == '-l':
+            write_log = False       
         elif include_tags:
             if arg[0] in '-~/':
                 print(err_msg2)
@@ -335,6 +347,8 @@ err_msg2 = '''*** Error in tag list argument:
 
 
 def write_log(message):
+    if not write_log:
+        return
     if set_logging_on == True:
         if not os.path.exists(sync_backup):
             os.makedirs(sync_backup)
@@ -386,8 +400,11 @@ def export_markdown():
         if file_list:
             cre_dt = dt_conv(creation_date)
             mod_dt = dt_conv(modified)
+            if export_without_tags:
+                md_text = strip_all_tags(md_text)
             if not export_raw:
-                md_text = hide_tags(md_text)
+                if not export_without_tags:
+                    md_text = hide_tags(md_text)
                 md_text += '\n\n<!-- {BearID:' + uuid + '} -->\n'
             for filepath in file_list:
                 note_count += 1
@@ -476,6 +493,30 @@ def include_files(md_text, assets):
             if ' ' in file:
                 md_text = md_text.replace('(assets/' + file, '(assets/' + file.replace(' ', '%20'))
     return md_text
+
+
+def strip_all_tags(md_text):
+    # Removes all tags in note:
+    pattern1 = r'(?<!\S)\#([^ \d][\w\/\-]+)[ \n]?(?!([\/ \w\-]+\w[#]))'
+    pattern2 = r'(?<![\S])\#([^ \d][.\w\/ \-]+?)\#([ ]|$)'
+    code_block = False
+    new_lines = []
+    for line in md_text.splitlines():
+        if line[:2] in ['# ', '##']:
+            new_lines.append(line)
+            continue
+        if line.startswith('```'):
+            # Toggle code_block flag:
+            code_block = code_block == False            
+            new_lines.append(line)
+        elif not code_block and '#' in line:
+            stripped_line = re.sub(pattern1, '', line)
+            stripped_line = re.sub(pattern2, '', stripped_line)
+            if stripped_line.strip() != '':
+                new_lines.append(stripped_line)
+        else:
+            new_lines.append(line)
+    return '\n'.join(new_lines)
 
 
 def sub_path_from_tag(temp_path, filename, md_text):
@@ -641,7 +682,7 @@ def write_time_stamp():
 
 def hide_tags(md_text):
     if hide_tags_in_comment_block:
-        md_text =  re.sub(r'(\n)[ \t]*(\#[\w.].+)', r'\1<!-- \2 -->', md_text)
+        md_text = re.sub(r'(\n)[ \t]*(\#[\w.].+)', r'\1<!-- \2 -->', md_text)
     else:
         # Hide tags from being seen as H1, by placing `period+space` at start of line:
         md_text =  re.sub(r'(\n)[ \t]*(\#[\w.]+)', r'\1. \2', md_text)
