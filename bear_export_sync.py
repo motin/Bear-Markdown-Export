@@ -4,7 +4,7 @@
 
 version = '''
 bear_export_sync.py - markdown export from Bear sqlite database 
-Version 1.5.5, 2018-11-15 at 10:41 IST - github/rovest, rorves@twitter
+Version 1.5.6, 2018-11-15 at 14:16 IST - github/rovest, rorves@twitter
 Developed on an MBP with Visual Studio Code with MS Python extension.
 Tested with python 3.6 and Bear 1.6.3 on MacOS 10.14'''
 
@@ -14,15 +14,17 @@ help_text = '''
     -h  display this Help text.
     -v  Version info displayed.
     -d  run with Default settings (as in earlier versions), use no other arguments.
-    -o  full Output export path from root as next argument!  
-        example: "/users/username/Dropbox/Bear Export" or "~/OneDrive/MyNotes"
-        enclose in " " if spaces in path. Use ~ for home-folder.
+    -o  full Output export path from root as next argument! Examples: 
+        -o "/users/Guest/Bear Export" (make sure you have permission if not on HOME)
+        -o MyBearNotes with no leading '/', will be relative to HOME-folder.
+        enclose in " " if spaces in path! (Default: '~/Dropbox/BearNotes')
     -t  Tags to be exported, as comma separated list of tags in next argument:
-        mytag,travelinfo,memos,writings
-        enclose in " " if any spaces: "My Essay/in edit,Travel Info,memos/medical"
+            -t mytag,travelinfo,memos,writings
+            enclose list in " " if any spaces: 
+            -t "My Essay/in edit,Travel Info,memos/my medical"
     -x  tags to be eXcluded as comma separated list in next argument:
-        health,private,secret
-        use either -e or -t, not both!  
+            -x health,private,secret
+            use either -e or -t, not both!
     -r  force Run - runs even if no changes in db since last run.
     -p  export as regular markdown files, but with links to images and files 
         that are copied to a rePository (not textbundles) in two folders: 
@@ -105,7 +107,7 @@ multi_tag_folders = True  # Copies notes to all 'tag-paths' found in note!
                           # Only active if `make_tag_folders = True`
 hide_tags_in_comment_block = True  # Hide tags in HTML comments: `<!-- #mytag -->`
 export_without_tags = False
-write_log = True
+do_not_log = False
 
 # The following two lists are more or less mutually exclusive, so use only one of them.
 # (You can use both if you have some nested tags where that makes sense)
@@ -206,8 +208,8 @@ def main():
         return
     if export_image_repository:
         global assets_images_path, assets_files_path
-        assets_images_path = os.path.join(HOME, export_path, 'BearAssetsImages')
-        assets_files_path = os.path.join(HOME, export_path, 'BearAssetsFiles')
+        assets_images_path = os.path.join(export_path, 'BearAssetsImages')
+        assets_files_path = os.path.join(export_path, 'BearAssetsFiles')
     init_gettag_script()
     if do_sync_back_to_bear:
         sync_md_updates()
@@ -228,9 +230,9 @@ def main():
 def check_sysargs():
     global force_run, make_tag_folders, multi_tag_folders, hide_tags_in_comment_block
     global include_archived, export_as_textbundles, export_as_hybrids, do_sync_back_to_bear
-    global export_with_files, my_sync_service, export_image_repository, export_without_tags
+    global export_with_files, export_image_repository, export_without_tags
     global export_path, sync_ts_file, export_ts_file_exp, untagged_folder_name
-    global multi_export, only_export_these_tags, no_export_tags, export_raw, write_log
+    global multi_export, only_export_these_tags, no_export_tags, export_raw, do_not_log
     arg_count = len(sys.argv) - 1
     if arg_count == 0:
         # No arguments supplied: display help:
@@ -261,11 +263,13 @@ def check_sysargs():
         elif get_file:
             if arg.startswith('/') and len(arg) > 2:
                 export_path = arg
-            elif arg.startswith('~/' and len(arg) > 3):
+            elif arg.startswith('~/') and len(arg) > 3:
                 export_path = arg.replace('~', HOME)
-            else:
+            elif len(arg) < 3:
                 print(err_msg1)
-                return False
+                return False  
+            else:
+                export_path = os.path.join(HOME, arg)
             if not os.path.exists(export_path):
                 os.makedirs(export_path)
             sync_ts_file = os.path.join(export_path, sync_ts)
@@ -306,7 +310,7 @@ def check_sysargs():
         elif arg == '-w':
             export_without_tags = True       
         elif arg == '-l':
-            write_log = False       
+            do_not_log = True       
         elif include_tags:
             if arg[0] in '-~/':
                 print(err_msg2)
@@ -334,9 +338,9 @@ def check_sysargs():
 
 err_msg1 = '''*** Error in path name!
     -o  
-        Supply full output path from root as next argument!  
-        Example: "/users/username/Dropbox/Bear Export" or "~/OneDrive/MyNotes"
-        Enclose in " " if spaces in path and ~ = home-folder'''
+        Use at least a 3 char string:
+        Example: -o "/users/Guest/Dropbox/Bear Notes" or -o OneDrive/MyNotes
+        Enclose in " " if spaces in path and without leading / if on Home-folder'''
         
 err_msg2 = '''*** Error in tag list argument:
     -t or -e    
@@ -347,7 +351,7 @@ err_msg2 = '''*** Error in tag list argument:
 
 
 def write_log(message):
-    if not write_log:
+    if do_not_log:
         return
     if set_logging_on == True:
         if not os.path.exists(sync_backup):
