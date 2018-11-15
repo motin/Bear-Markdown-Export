@@ -1,31 +1,38 @@
-## Markdown export and sync of Bear notes
+# Markdown export and sync of Bear notes
 
-**Version 1.5.5, 2018-11-15 at 10:41 IST** 
+**Version 1.5.7, 2018-11-15 at 18:53 IST**
 
 *Updated 2018-11-15:*
+
+- *Cleaning up code*
+- *Bug fixes*
 - *Added argument: '-l' do not write to Log-file.*
 - *Added function and argument: '-w' export Without tags: All tags are stripped from text.*
 
 *Updated 2018-11-14:*
+
 - *Added command line arguments: -R for 'RAW' markdown export, and -s for no Sync.*
 - *Included some other improvements from pull requests.*
 
 *Updated 2018-11-13:*
+
 - *Added command line argument help and switches.*
 
 *Updated 2018-11-12:*
+
 - *Now with export of file attachments (only to .textbundle)*
 - *All untagged notes are now exported to '_Untagged' folder if 'make_tag_folders = True'*
 - *Added choice for exporting with or without archived notes, or only archived.* 
 - *Removes escaping of spaces in sync/import back to Bear.*
 - *Fixed multiple copying if same tag is repeated in same note. Case sensitive though!*
 
-
 *Updaded 2018-10-30:*
+
 - *Use newer rsync from Carbon Copy Cloner to preserve file-creation-time.*
 - *Fixed escaping of spaces in image names from iPhone camera taken directly in Bear.*
 
 *Updaded 2018-10-17:*
+
 - *new Bear path: 'Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data'*
 
 Python script for export and roundtrip sync of Bear's notes to OneDrive, Dropbox, etc. and edit online with [StackEdit](https://stackedit.io/app), or use a markdown editor like *Typora* on Windows or a suitable app on Android. Remote edits and new notes get synced back into Bear with this script.
@@ -44,18 +51,16 @@ BEAR IN MIND! This version is free to use as is, and please improve or modify yo
 
 ## Features
 
-* Bear notes exported as plain Markdown or Textbundles with images.
-* Syncs external edits back to Bear with original image links intact. 
-* New external `.md` files or `.textbundles` are added.  
-(Tags created from sub folder name)
-* Export option: Make nested folders from tags.   
-For first tag only, or all tags (duplicates notes)
-* Export option: Include or exclude export of notes with specific tags.
-* Export option: Export as `.textbundles` with images included. 
-* Or as: `.md` with links to common image repository 
-* Export option: Hide tags in HTML comments like: `<!-- #mytag -->` if `hide_tags_in_comment_block = True`
-* **NEW** Hybrid export: `.textbundles` of notes with images, otherwise regular `.md` (Makes it easier to browse and edit on other platforms.)
-* **NEW** Writes log to `bear_export_sync_log.txt` in `BearSyncBackup` folder.
+- Bear notes exported as plain Markdown or Textbundles with images.
+- Syncs external edits back to Bear with original image links intact. 
+- New external `.md` files or `.textbundles` are added. (Tags created from sub folder name)
+- Export option: Make nested folders from tags. For first tag only, or all tags (duplicates notes)
+- Export option: Include or exclude export of notes with specific tags.
+- Export option: Export as `.textbundles` with images included. 
+- Or as: `.md` with links to common image repository 
+- Export option: Hide tags in HTML comments like: `<!-- #mytag -->` if `hide_tags_in_comment_block = True`
+- **NEW** Hybrid export: `.textbundles` of notes with images, otherwise regular `.md` (Makes it easier to browse and edit on other platforms.)
+- **NEW** Writes log to `bear_export_sync_log.txt` in `BearSyncBackup` folder.
 
 Edit your Bear notes online in browser on [OneDrive.com](https://onedrive.live.com). It has a ok editor for plain text/markdown. Or with [StackEdit](https://stackedit.io/app), an amazing online markdown editor that can sync with *Dropbox* or *Google Drive*
 
@@ -65,7 +70,6 @@ NOTE! If syncing with Ulysses’ external folders on Mac, remember to edit that 
 
 Run script manually or add it to a cron job for automatic syncing (every 5 – 15 minutes, or whatever you prefer).  
 ([LaunchD Task Scheduler](https://itunes.apple.com/us/app/launchd-task-scheduler/id620249105?mt=12) Is easy to configure and works very well for this) 
-
 
 ### Syncs external edits back into Bear
 Script first checks for external edits in Markdown files or textbundles (previously exported from Bear as described below):
@@ -80,7 +84,6 @@ If any changes to title, new title will be added just below original title.
 (with the `bear://x-callback-url/create` command)
 * If a textbundle gets new images from an external app, it will be opened and imported as a new note in Bear, with message and link to original note.  
 (The `subprocess.call(['open', '-a', '/applications/bear.app', bundle])` command is used for this)
-
 
 ### Markdown export to Dropbox, OneDrive, or other:
 Then exports all notes from Bear's database.sqlite as plain markdown files:
@@ -103,7 +106,6 @@ Then exports all notes from Bear's database.sqlite as plain markdown files:
 or leave list empty for all notes: `limit_export_to_tags = []`
 * Can export and link to images in common image repository
 * Or export as textbundles with images included 
-
 
 You have Bear on Mac but also want your notes on your Android phone, on Linux or Windows machine at your office. Or you want them available online in a browser from any desktop computer. Here is a solution (or call it workaround) for now, until Bear comes with an online, Windows, or Android solution ;)
 

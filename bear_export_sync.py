@@ -4,7 +4,7 @@
 
 version = '''
 bear_export_sync.py - markdown export from Bear sqlite database 
-Version 1.5.6, 2018-11-15 at 14:16 IST - github/rovest, rorves@twitter
+Version 1.5.7, 2018-11-15 at 18:53 IST - github/rovest, rorves@twitter
 Developed on an MBP with Visual Studio Code with MS Python extension.
 Tested with python 3.6 and Bear 1.6.3 on MacOS 10.14'''
 
@@ -14,9 +14,11 @@ help_text = '''
     -h  display this Help text.
     -v  Version info displayed.
     -d  run with Default settings (as in earlier versions), use no other arguments.
-    -o  full Output export path from root as next argument! Examples: 
-        -o "/users/Guest/Bear Export" (make sure you have permission if not on HOME)
-        -o MyBearNotes with no leading '/', will be relative to HOME-folder.
+    -o  export Out path as next argument! 
+        'BearNotes' will be added to path for security reasons!
+        Examples: -o MyExports (if no leading '/' it will be placed on HOME-folder)
+        -o "/users/Guest" (make sure you have permission if not on HOME)
+        -o ~  (tilde only = 'BearNotes' directly on HOME folder)
         enclose in " " if spaces in path! (Default: '~/Dropbox/BearNotes')
     -t  Tags to be exported, as comma separated list of tags in next argument:
             -t mytag,travelinfo,memos,writings
@@ -49,6 +51,8 @@ help_text = '''
 '''
 =================================================================================================
 Updated 2018-11-15
+    - Cleaning up code
+    - Bug fixes
     - Added argument: '-l' do not write to Log-file.
     - Added function and argument: '-w' export Without tags: All tags are stripped from text.
 
@@ -131,45 +135,31 @@ export_image_repository = False  # Export all notes as md but link images to
                                  # a common repository exported to: `assets_images_path` 
                                  # Only used if `export_as_textbundles = False`
 do_sync_back_to_bear = True  # Syncs any changes in exported files back to Bear
-
-my_sync_service = 'Dropbox'  # Change 'Dropbox' to 'Box', 'Onedrive',
-    # or whatever folder of sync service you need.
 force_run = False
+set_logging_on = True
 
-# NOTE! Your user 'HOME' path and '/BearNotes' is added below!
-# NOTE! So do not change anything below here!!!
+my_sync_service = 'Dropbox'  # Change 'Dropbox' to 'Box', 'Onedrive' or whatever folder of sync service you want.
+
+# NOTE! Do not change anything below here!!!
 
 import sqlite3
 import datetime
 import re
 import subprocess
 import urllib.parse
-import os
 import time
 import shutil
 import fnmatch
 import json
 import sys
+import os
 
 HOME = os.getenv('HOME', '')
-
-set_logging_on = True
-
 # NOTE! if 'BearNotes' is left blank, all other files in my_sync_service will be deleted!! 
 export_path = os.path.join(HOME, my_sync_service, 'BearNotes')
 # NOTE! "export_path" is used for sync-back to Bear, so don't change this variable name!
-multi_export = [(export_path, True)]  # only one folder output here. 
-# Add folders if you want export to several places like: both Dropbox and OneDrive, etc., see below:
-
-# Sample for multi folder export:
-# export_path_aux1 = os.path.join(HOME, 'OneDrive', 'BearNotes')
-# export_path_aux2 = os.path.join(HOME, 'Box', 'BearNotes')
-# NOTE! All files in export path not in Bear will be deleted if delete flag is "True"!
-# Set this flag fo False only for folders to keep old deleted versions of notes
-# multi_export = [(export_path, True), (export_path_aux1, False), (export_path_aux2, True)]
 
 bear_db = os.path.join(HOME, 'Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data/database.sqlite')
-
 temp_path = os.path.join(HOME, 'BearTemp', 'BearExportTemp')  # NOTE! Do not change the "BearExportTemp" folder name!!!
 sync_backup = os.path.join(HOME, 'BearTemp', 'BearSyncBackup') # Backup of original note before sync to Bear.
 log_file = os.path.join(sync_backup, 'bear_export_sync_log.txt')
@@ -193,10 +183,10 @@ export_ts_file = os.path.join(temp_path, export_ts)
 gettag_sh = os.path.join(HOME, 'temp/gettag.sh')
 gettag_txt = os.path.join(HOME, 'temp/gettag.txt')
 
+# If present, use newer rsync v. 3.0.6 from Carbon Copy Cloner:
 rsync_path = '/Library/Application Support/com.bombich.ccc/Frameworks/CloneKit.framework/Versions/A/rsync'
-# If present, use newer rsync v. 3.0.6 from Carbon Copy Cloner 
-# with --crtimes to preserve file-creation-time
 if os.path.exists(rsync_path):
+    # with --crtimes to preserve file-creation-time
     crswitch = '--crtimes' 
 else:
     rsync_path = 'rsync'
@@ -217,7 +207,7 @@ def main():
         delete_old_temp_files()
         note_count = export_markdown()
         write_time_stamp()
-        rsync_files_from_temp()
+        rsync_files_from_temp(export_path, True)
         if export_image_repository and not export_as_textbundles:
             copy_bear_images_and_files()
         # notify('Export completed')
@@ -232,7 +222,7 @@ def check_sysargs():
     global include_archived, export_as_textbundles, export_as_hybrids, do_sync_back_to_bear
     global export_with_files, export_image_repository, export_without_tags
     global export_path, sync_ts_file, export_ts_file_exp, untagged_folder_name
-    global multi_export, only_export_these_tags, no_export_tags, export_raw, do_not_log
+    global only_export_these_tags, no_export_tags, export_raw, do_not_log
     arg_count = len(sys.argv) - 1
     if arg_count == 0:
         # No arguments supplied: display help:
@@ -261,20 +251,20 @@ def check_sysargs():
             print(version)
             return False
         elif get_file:
-            if arg.startswith('/') and len(arg) > 2:
-                export_path = arg
-            elif arg.startswith('~/') and len(arg) > 3:
-                export_path = arg.replace('~', HOME)
-            elif len(arg) < 3:
-                print(err_msg1)
-                return False  
+            if arg.startswith('/'):
+                export_path = os.path.join(arg, 'BearNotes')
+            elif arg.startswith('~/'):
+                export_path = os.path.join(HOME, arg.replace('~/', ''), 'BearNotes')
+            elif arg == '~':
+                export_path = os.path.join(HOME, 'BearNotes')
             else:
-                export_path = os.path.join(HOME, arg)
+                export_path = os.path.join(HOME, arg, 'BearNotes')
             if not os.path.exists(export_path):
                 os.makedirs(export_path)
+            # NOTE! if 'BearNotes' was not added, all other files in export_path would be deleted!! 
+            # So very dangerous if you accidentally used an exsisting path with other files and subfolders!
             sync_ts_file = os.path.join(export_path, sync_ts)
             export_ts_file_exp = os.path.join(export_path, export_ts)
-            multi_export = [(export_path, True)]
             get_file = False
         elif arg == '-r':
             force_run = True
@@ -339,7 +329,8 @@ def check_sysargs():
 err_msg1 = '''*** Error in path name!
     -o  
         Use at least a 3 char string:
-        Example: -o "/users/Guest/Dropbox/Bear Notes" or -o OneDrive/MyNotes
+        Example: -o "/users/Guest/Dropbox" or -o OneDrive
+        'BearNotes' will be added to path for security reasons.
         Enclose in " " if spaces in path and without leading / if on Home-folder'''
         
 err_msg2 = '''*** Error in tag list argument:
@@ -776,7 +767,7 @@ def delete_old_temp_files():
     os.makedirs(temp_path)
 
 
-def rsync_files_from_temp():
+def rsync_files_from_temp(dest_path, delete):
     # Moves markdown files to new folder using rsync:
     # This is a very important step! 
     # By first exporting all Bear notes to an emptied temp folder,
@@ -785,31 +776,31 @@ def rsync_files_from_temp():
     # Rsync will also delete notes on destination if deleted in Bear.
     # So doing it this way saves a lot of otherwise very complex programing.
     # Thank you very much, Rsync! ;)
-    for (dest_path, delete) in multi_export:
-        if not os.path.exists(dest_path):
-            os.makedirs(dest_path)
-        if delete:
-            if export_with_files and export_image_repository:
-                exclude_assets_files = 'BearAssetsFiles/'
-            else:
-                exclude_assets_files = ''
-            if export_image_repository:
-                exclude_assets_images = 'BearAssetsImages/'
-            else:
-                exclude_assets_images = ''
-            
-            # subprocess.call(['rsync',
-            # Use newer rsync v. 3.0.6 from Carbon Copy Cloner with --crtimes to preserve cre-time
-            subprocess.call([rsync_path, crswitch,
-                             '-r', '-t', '--delete', '-q',
-                             '--exclude', exclude_assets_images,
-                             '--exclude', exclude_assets_files,
-                             '--exclude', '.Ulysses*',
-                             '--exclude', '*.Ulysses_Public_Filter',
-                             temp_path + "/", dest_path])
+
+    if not os.path.exists(dest_path):
+        os.makedirs(dest_path)
+    if delete:
+        if export_with_files and export_image_repository:
+            exclude_assets_files = 'BearAssetsFiles/'
         else:
-            subprocess.call(['rsync', '-r', '-t', '-q',
+            exclude_assets_files = ''
+        if export_image_repository:
+            exclude_assets_images = 'BearAssetsImages/'
+        else:
+            exclude_assets_images = ''
+        
+        # subprocess.call(['rsync',
+        # Use newer rsync v. 3.0.6 from Carbon Copy Cloner with --crtimes to preserve cre-time
+        subprocess.call([rsync_path, crswitch,
+                            '-r', '-t', '--delete', '-q',
+                            '--exclude', exclude_assets_images,
+                            '--exclude', exclude_assets_files,
+                            '--exclude', '.Ulysses*',
+                            '--exclude', '*.Ulysses_Public_Filter',
                             temp_path + "/", dest_path])
+    else:
+        subprocess.call(['rsync', '-r', '-t', '-q',
+                        temp_path + "/", dest_path])
 
 
 def sync_md_updates():
