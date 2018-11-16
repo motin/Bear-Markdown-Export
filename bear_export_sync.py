@@ -4,8 +4,8 @@
 
 version = '''
 bear_export_sync.py - markdown export from Bear sqlite database 
-Version 1.6.0, 2018-11-16 at 07:54 IST - github/rovest, rorves@twitter
-**Please discard versions 1.5.x!**
+Version 1.6.1, 2018-11-16 at 11:42 IST - github/rovest, rorves@twitter
+** Please discard versions 1.5.x **
 Developed on an MBP with Visual Studio Code with MS Python extension.
 Tested with python 3.6 and Bear 1.6.3 on MacOS 10.14'''
 
@@ -15,12 +15,12 @@ help_text = '''
     -h  display this Help text.
     -v  Version info displayed.
     -d  run with Default settings (as in earlier versions), use no other arguments.
-    -o  export Out path as next argument! 
-        'BearNotes' will be added to path for security reasons!
-        Examples: -o MyExports (if no leading '/' it will be placed on HOME-folder)
+    -o  export Out path as next argument! Examples:
+        -o MyExports (if no leading '/' it will be placed on HOME-folder)
         -o "/users/Guest" (make sure you have permission if not on HOME)
-        -o ~  (tilde only = 'BearNotes' directly on HOME folder)
+        -o ~  (tilde only = 'BearNotes' folder directly on HOME root)
         enclose in " " if spaces in path! (Default: '~/Dropbox/BearNotes')
+        PS. 'BearNotes' will always be added to path for security reasons!  
     -t  Tags to be exported, as comma separated list of tags in next argument:
             -t mytag,travelinfo,memos,writings
             enclose list in " " if any spaces: 
@@ -213,9 +213,11 @@ def main():
             copy_bear_images_and_files()
         # notify('Export completed')
         write_log(str(note_count) + ' notes exported to: ' + export_path)
-        print(str(note_count) + ' notes exported to: ' + export_path)        
+        time_stamp = datetime.datetime.now().strftime("%Y-%m-%d at %H:%M:%S")
+        print(time_stamp + ' - ' + str(note_count) + ' notes exported to: ' + export_path)        
     else:
-        print('*** No notes needed exports')
+        time_stamp = datetime.datetime.now().strftime("%Y-%m-%d at %H:%M:%S")
+        print(time_stamp, '*** No export needed: nothing modified in Bear since last export')
 
 
 def check_sysargs():
@@ -231,7 +233,8 @@ def check_sysargs():
         print(help_text)
         return False
     i = 0
-    get_file = False
+    get_path = False
+    path_ok = True
     include_tags = False
     exclude_tags = False
     time_stamp = datetime.datetime.now().strftime("%Y-%m-%d at %H:%M:%S")
@@ -251,22 +254,29 @@ def check_sysargs():
         elif arg == '-v':
             print(version)
             return False
-        elif get_file:
+        elif get_path:
             if arg.startswith('/'):
                 export_path = os.path.join(arg, 'BearNotes')
             elif arg.startswith('~/'):
                 export_path = os.path.join(HOME, arg.replace('~/', ''), 'BearNotes')
             elif arg == '~':
+                # 'BearNotes' folder directly on HOME root.
                 export_path = os.path.join(HOME, 'BearNotes')
+            elif arg.startswith('-') and len(arg) < 3:
+                # If user accidentally supplied another CLI switch after '-o' instead of 'path name'
+                print('\n*** Wrong argument:', arg, err_msg1)
+                return False
             else:
                 export_path = os.path.join(HOME, arg, 'BearNotes')
-            if not os.path.exists(export_path):
-                os.makedirs(export_path)
+            if HOME + '/BearTemp/' in export_path:
+                print('\n*** This is a reserved folder name, do not use! :', arg + '\n')
+                return False
             # NOTE! if 'BearNotes' was not added, all other files in export_path would be deleted!! 
             # So very dangerous if you accidentally used an exsisting path with other files and subfolders!
             sync_ts_file = os.path.join(export_path, sync_ts)
             export_ts_file_exp = os.path.join(export_path, export_ts)
-            get_file = False
+            get_path = False
+            path_ok = True
         elif arg == '-r':
             force_run = True
         elif arg == '-s':
@@ -293,7 +303,7 @@ def check_sysargs():
             export_image_repository = True
             export_as_textbundles = False
         elif arg == '-o':
-            get_file = True
+            get_path = True
         elif arg == '-t':
             include_tags = True
         elif arg == '-x':
@@ -304,42 +314,52 @@ def check_sysargs():
             do_not_log = True       
         elif include_tags:
             if arg[0] in '-~/':
-                print(err_msg2)
+                print(arg, err_msg2)
                 return False
             only_export_these_tags = arg.split(',')
             include_tags = False
         elif exclude_tags:
             if arg[0] in '-~/':
-                print(err_msg2)
+                print(arg, err_msg2)
                 return False
             no_export_tags = arg.split(',')
             exclude_tags = False
         else:
-            print('### Illegal argument! Use with -h for help!')
+            print('\n*** Unknown argument! Use with -h for help!\n***')
             return False
         i += 1
-    if get_file:
-        print(err_msg1)
+    if get_path:
+        print('\n*** Path name missing!', err_msg1)
         return False
     if include_tags or exclude_tags:
-        print(err_msg2)
+        print('\n*** Tag-list missing!', err_msg2)
         return False
+    if path_ok:
+        if not os.path.exists(export_path):
+            os.makedirs(export_path)
     return True
 
+err_msg1 = '''
+*** Error in the path name following the '-o' argument!
+        Use at least a 2 char string for path name and not starting with a '-'
+        Examples: 
 
-err_msg1 = '''*** Error in path name!
-    -o  
-        Use at least a 3 char string:
-        Example: -o "/users/Guest/Dropbox" or -o OneDrive
-        'BearNotes' will be added to path for security reasons.
-        Enclose in " " if spaces in path and without leading / if on Home-folder'''
+    -o OneDrive
+    -o "/users/Guest/My Exports"
+    -o ~ ('BearNotes' folder directly on HOME root)
+
+        'BearNotes' will always be added to path for security reasons.
+        Enclose in " " if spaces in path and without leading '/' if on Home-folder
+'''
         
-err_msg2 = '''*** Error in tag list argument:
+err_msg2 = '''
+*** Error in tag list argument:
     -t or -e    
         Supply tab separated list of tags as next argument!
         Examples:
         "My Essay/in edit,Travel Info,memos/medical"
-        health,private,secret'''
+        health,private,secret
+'''
 
 
 def write_log(message):
