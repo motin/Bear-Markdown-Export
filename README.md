@@ -1,6 +1,20 @@
 # Markdown export and sync of Bear notes
 
-**Version 1.5.7, 2018-11-15 at 18:53 IST**
+**Version 1.6.0, 2018-11-16 at 07:54 IST***
+
+# Warning!
+**Please discard versions 1.5.x!**
+
+It introduced CLI argument '-o' for export path, where it is possible to enter any user path. 
+
+So if one accidentally entered root of an existing folder, all other files and folders there, would be deleted (by rsync) when running those versions!
+
+This is now corrected in version 1.6, by always adding 'BearNotes' to whatever path users supply with the '-o' argument.  
+It is (now again) hardcoded for your safety.
+
+As always: please take a full backup of Bear and a full backup of your Mac before running new versions or when changing CLI arguments. 
+
+Apologies and hope nobody ran into this problem/SNAFU :)
 
 *Updated 2018-11-15:*
 

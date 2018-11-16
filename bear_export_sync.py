@@ -4,7 +4,8 @@
 
 version = '''
 bear_export_sync.py - markdown export from Bear sqlite database 
-Version 1.5.7, 2018-11-15 at 18:53 IST - github/rovest, rorves@twitter
+Version 1.6.0, 2018-11-16 at 07:54 IST - github/rovest, rorves@twitter
+**Please discard versions 1.5.x!**
 Developed on an MBP with Visual Studio Code with MS Python extension.
 Tested with python 3.6 and Bear 1.6.3 on MacOS 10.14'''
 
