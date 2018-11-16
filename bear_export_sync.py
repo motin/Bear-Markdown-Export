@@ -351,7 +351,7 @@ err_msg1 = '''
         'BearNotes' will always be added to path for security reasons.
         Enclose in " " if spaces in path and without leading '/' if on Home-folder
 '''
-
+        
 err_msg2 = '''
 *** Error in tag list argument:
     -t or -e    
@@ -424,6 +424,7 @@ def export_markdown():
                 md_text += '\n\n<!-- {BearID:' + uuid + '} -->\n'
             for filepath in file_list:
                 note_count += 1
+                # print(filepath)
                 if export_as_textbundles:
                     if check_image_hybrid(md_text):
                         make_text_bundle(md_text, filepath, mod_dt, cre_dt)                        
@@ -697,33 +698,11 @@ def write_time_stamp():
 
 def hide_tags(md_text):
     if hide_tags_in_comment_block:
-        # hide tags in HTML comment blocks:
-        pattern = r'^[ \t]*(\#[\w.].+)'
-        pattern2 = r'<!-- \1 -->'
+        md_text = re.sub(r'(\n)[ \t]*(\#[\w.].+)', r'\1<!-- \2 -->', md_text)
     else:
-        # Hide tags from being seen as H1 (in some Markdown Editors),
-        # by placing `period+space` at start of line:
-        pattern = r'^[ \t]*(\#[\w.]+)'
-        pattern2 = r'. \1'
-    code_block = False
-    new_lines = []
-    for line in md_text.splitlines():
-        if line[:2] in ['# ', '##']:
-            # Headings don't accept tags
-            new_lines.append(line)
-            continue
-        if line.startswith('```'):
-            # Toggle code_block flag:
-            code_block = code_block == False            
-            new_lines.append(line)
-        elif not code_block and '#' in line:
-            # pre check: only run regex if line contain '#'
-            changed_line = re.sub(pattern, pattern2, line)
-            if changed_line.strip() != '':
-                new_lines.append(changed_line)
-        else:
-            new_lines.append(line)
-    return '\n'.join(new_lines)
+        # Hide tags from being seen as H1, by placing `period+space` at start of line:
+        md_text =  re.sub(r'(\n)[ \t]*(\#[\w.]+)', r'\1. \2', md_text)
+    return md_text
 
 
 def restore_tags(md_text):
