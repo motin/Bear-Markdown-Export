@@ -4,7 +4,7 @@
 
 version = '''
 bear_export_sync.py - markdown export from Bear sqlite database 
-Version 1.6.2, 2018-11-16 at 19:24 IST - github/rovest, rorves@twitter
+Version 1.6.3, 2018-11-16 at 23:20 IST - github/rovest, rorves@twitter
 ** Please discard versions 1.5.x **
 Developed on an MBP with Visual Studio Code with MS Python extension.
 Tested with python 3.6 and Bear 1.6.3 on MacOS 10.14'''
@@ -51,6 +51,11 @@ help_text = '''
 
 '''
 =================================================================================================
+Updated 2018-11-16
+    - Fixed: tags getting HTML comment in code-blocks
+    - Fixed: tags or tag-like code, in codeblocks no longer exported in folders
+    - Simplified code in function: 'sub_path_from_tag()' used above
+
 Updated 2018-11-15
     - Cleaning up code
     - Bug fixes
@@ -535,54 +540,22 @@ def strip_all_tags(md_text):
 
 
 def sub_path_from_tag(temp_path, filename, md_text):
-    # Get tags in note:
-    pattern1 = r'(?<!\S)\#([^ \d][\w\/\-]+)[ \n]?(?!([\/ \w\-]+\w[#]))'
-    pattern2 = r'(?<![\S])\#([^ \d][.\w\/ \-]+?)\#([ \n]|$)'
     if multi_tag_folders:
         # Files copied to all tag-folders found in note
-        tags = []
-        for matches in re.findall(pattern1, md_text):
-            tag = matches[0]
-            if tag not in tags:
-                tags.append(tag)
-        for matches2 in re.findall(pattern2, md_text):
-            tag2 = matches2[0]
-            if tag2 not in tags:
-                tags.append(tag2)
-        if len(tags) == 0:
-            # No tags found
-            if only_export_these_tags:
-                return []
-            if untagged_folder_name == '':
-                # copy to root level only
-                return [os.path.join(temp_path, filename)]
-            else:
-                tag = untagged_folder_name
-                tags = [tag]
+        tags = find_all_tags(md_text)
     else:
         # Only folder for first tag
-        match1 =  re.search(pattern1, md_text)
-        match2 =  re.search(pattern2, md_text)
-        if match1 and match2:
-            if match1.start(1) < match2.start(1):
-                tag = match1.group(1)
-            else:
-                tag = match2.group(1)
-        elif match1:
-            tag = match1.group(1)
-        elif match2:
-            tag = match2.group(1)
-        elif only_export_these_tags:
+        tags = find_first_tag(md_text)
+    if len(tags) == 0:
+        # No tags found
+        if only_export_these_tags:
             return []
+        if untagged_folder_name == '':
+            # copy to root level only
+            return [os.path.join(temp_path, filename)]
         else:
-            # No tags found
-            if untagged_folder_name == '':
-                # copy to root level only
-                return [os.path.join(temp_path, filename)]
-            else:
-                tag = untagged_folder_name
-        tags = [tag]
- 
+            tag = untagged_folder_name
+            tags = [tag]
     paths = []
     for tag in tags:
         if tag == '/':
@@ -599,7 +572,7 @@ def sub_path_from_tag(temp_path, filename, md_text):
             if tag.lower().startswith(no_tag.lower()):
                 return []
         if tag.startswith('.'):
-            # Avoid hidden path if it starts with a '.'
+            # Avoid hidden path if a tag starts with: '.'
             sub_path = '_' + tag[1:]     
         else:
             sub_path = tag    
@@ -608,6 +581,52 @@ def sub_path_from_tag(temp_path, filename, md_text):
             os.makedirs(tag_path)
         paths.append(os.path.join(tag_path, filename))      
     return paths
+
+
+def find_all_tags(md_text):
+    pattern1 = r'(?<!\S)\#([^ \d][\w\/\-]+)[ \n]?(?!([\/ \w\-]+\w[#]))'
+    pattern2 = r'(?<![\S])\#([^ \d][.\w\/ \-]+?)\#([ ]|$)'
+    pattern_list = (pattern1, pattern2)
+    code_block = False
+    tags_found = []
+    for line in md_text.splitlines():
+        if line[:2] in ['# ', '##']:
+            continue
+        if line.startswith('```'):
+            # Toggle code_block flag:
+            code_block = code_block == False            
+        elif not code_block and '#' in line:
+            for pattern in pattern_list:
+                matches = re.findall(pattern, line)
+                for match in matches:
+                    tags_found.append(match[0])
+    return set(tags_found)
+
+
+def find_first_tag(md_text):
+    pattern1 = r'(?<!\S)\#([^ \d][\w\/\-]+)[ \n]?(?!([\/ \w\-]+\w[#]))'
+    pattern2 = r'(?<![\S])\#([^ \d][.\w\/ \-]+?)\#([ ]|$)'
+    code_block = False
+    for line in md_text.splitlines():
+        if line[:2] in ['# ', '##']:
+            continue
+        if line.startswith('```'):
+            # Toggle code_block flag:
+            code_block = code_block == False            
+        elif not code_block and '#' in line:
+            # for pattern in pattern_list:
+                match1 = re.search(pattern1, line)
+                match2 = re.search(pattern2, line)
+                if match1 and match2:
+                    if match1.start(1) < match2.start(1):
+                        return [match1.group(1)]
+                    else:
+                        return [match2.group(1)]
+                elif match1:
+                    return [match1.group(1)]
+                elif match2:
+                    return [match2.group(1)]
+    return []
 
 
 def process_image_and_file_links(md_text, filepath):

@@ -1,20 +1,25 @@
 # Markdown export and sync of Bear notes
 
-**Version 1.6.0, 2018-11-16 at 07:54 IST***
+**Version 1.6.3, 2018-11-16 at 23:20 IST***
 
 ## Warning!
-**Please discard versions 1.5.x!**
+**Please discard versions 1.5.x !**
 
-It introduced CLI argument '-o' for export path, where it is possible to enter any user path. 
+> It introduced CLI argument '-o' for export path, where it is possible to enter any user path. 
+> 
+> So if one accidentally entered root of an existing folder, all other files and folders there, would be deleted (by rsync) when running 1.5.x !
+> 
+> This is now corrected from version 1.6.0, by always adding 'BearNotes' to whatever path users supply with the '-o' argument. It's now (once again) hardcoded for your safety.
+> 
+> As always: please take a full backup of Bear and a full backup of your Mac before running new versions or when changing CLI arguments. 
+> 
+> Apologies and hope nobody ran into this problem/SNAFU :)
 
-So if one accidentally entered root of an existing folder, all other files and folders there, would be deleted (by rsync) when running those versions!
+*Updated 2018-11-16:*
 
-This is now corrected in version 1.6, by always adding 'BearNotes' to whatever path users supply with the '-o' argument.  
-It is (now again) hardcoded for your safety.
-
-As always: please take a full backup of Bear and a full backup of your Mac before running new versions or when changing CLI arguments. 
-
-Apologies and hope nobody ran into this problem/SNAFU :)
+- *Fixed: tags getting HTML comment in code-blocks*
+- *Fixed: tags or tag-like code, in codeblocks no longer exported in folders*
+- *Simplified code in function: 'sub_path_from_tag()' used above*
 
 *Updated 2018-11-15:*
 
