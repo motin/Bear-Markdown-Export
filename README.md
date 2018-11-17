@@ -1,6 +1,111 @@
 # Markdown export and sync of Bear notes
 
-**Version 1.6.3, 2018-11-16 at 23:20 IST***
+**Version 1.7.0, 2018-11-17 at 16:12 IST**
+
+Update 2018-11-17:
+- Refactored code: Now using the 'argparse' library instead of clunky, home-made CLI function.  
+Thanks to @motin for that pull-request and code suggestion :)
+- Updated shell script sample for easy run with various choices and multiple outputs.
+- **Please see help text below for all input arguments:**
+ 
+*Help text when run with "-h" in version 1.7.0:*
+```
+*** Run with "-h" to display help on all functions and argument switches.
+*** If no arguments: script runs with internal defaults.
+*** If switches are used alone, like: '-b', it will toggle default value.
+*** Or use like this: '-b=false', '-b=0', '--text_bundle=false', '-b=true' to set explicit value.
+*** Use either short form: '-b' or long form: '--text_bundle'
+*** Also use '=' for input strings: '--out_path=OneDrive' or '-o=Box'
+*** Multi values as CSV list: "--exclude_tags=private,banking,old stuff,stupid ideas"
+*** NOTE: Enclose whole argument in " " if any spaces in tags or out_path
+
+usage: bear_export_sync_test.py [-h] [-v [VERSION]] [-d [DEFAULT]]
+                                [-r [FORCE_RUN]] [-f [TAG_FOLDERS]]
+                                [-m [MULTI_FOLDERS]]
+                                [-u [UNTAGGED_FOLDER_NAME]]
+                                [-c [TAGS_COMMENTED]] [-w [WITHOUT_TAGS]]
+                                [-t [INCLUDE_TAGS]] [-x [EXCLUDE_TAGS]]
+                                [-b [AS_TEXTBUNDLES]] [-y [AS_HYBRIDS]]
+                                [-i [INCLUDE_FILES]] [-p [REPOSITORIES]]
+                                [-o [OUT_PATH]] [-l [LOGGING]] [-s [DO_SYNC]]
+                                [-R [RAW_MD]] [-a [INCLUDE_ARCHIVED]]
+                                [-n [ONLY_ARCHIVED]]
+
+Markdown export from Bear sqlite database.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -v [VERSION], --version [VERSION]
+                        (Default: False) Displays version info.
+  -d [DEFAULT], --default [DEFAULT]
+                        (Default: True) Run only with internal defaults.
+                        Depreciated (but there for backwards compatibility):
+                        Running without any arguments will do the same.
+  -r [FORCE_RUN], --force_run [FORCE_RUN]
+                        (Default: False) Runs even if no changes in db since
+                        last run.
+  -f [TAG_FOLDERS], --tag_folders [TAG_FOLDERS]
+                        (Default: True) Exports to folders using first tag
+                        only, if `multi_folders = False`
+  -m [MULTI_FOLDERS], --multi_folders [MULTI_FOLDERS]
+                        (Default: True) Copies notes to all 'tag-paths' found
+                        in note! Only active if `tag_folders = True`
+  -u [UNTAGGED_FOLDER_NAME], --untagged_folder_name [UNTAGGED_FOLDER_NAME]
+                        (Default: '_Untagged') If empty, untagged notes
+                        exports to root-folder.
+  -c [TAGS_COMMENTED], --tags_commented [TAGS_COMMENTED]
+                        (Default: True) Hide tags in HTML comments: `<!--
+                        #mytag -->`
+  -w [WITHOUT_TAGS], --without_tags [WITHOUT_TAGS]
+                        (Default: False) Remove all tags from exported notes.
+  -t [INCLUDE_TAGS], --include_tags [INCLUDE_TAGS]
+                        (Default: '' all notes included) Example: "--
+                        include_tags=bear,writings'", '-t=b' (all tags
+                        beginning with 'b'). Comma separated list of tags in
+                        notes, only matching notes will be exported. Works
+                        only if `tag_folders = True`.
+  -x [EXCLUDE_TAGS], --exclude_tags [EXCLUDE_TAGS]
+                        (Default: '' no notes excluded) Example: "--
+                        exclude_tags=private,.inbox,love letters,banking'",
+                        '-x=.' (exclude all tags with leading '.') If a tag in
+                        note matches one in this list, it will not be
+                        exported.
+  -b [AS_TEXTBUNDLES], --as_textbundles [AS_TEXTBUNDLES]
+                        (Default: True) Exports all notes as Textbundles, also 
+                        when no images in note.
+  -y [AS_HYBRIDS], --as_hybrids [AS_HYBRIDS]
+                        (Default: True) Exports as .textbundle only if images
+                        included, otherwise as .md. Only used if
+                        `as_textbundles = True`
+  -i [INCLUDE_FILES], --include_files [INCLUDE_FILES]
+                        (Default: True) Include file attachments. Only used if
+                        'as_textbundles' or 'repositories' = True
+  -p [REPOSITORIES], --repositories [REPOSITORIES]
+                        (Default: True) Export all notes as md but link images
+                        and files to common repositories. Only used if
+                        `as_textbundles = False`
+  -o [OUT_PATH], --out_path [OUT_PATH]
+                        (Default: Dropbox) Examples: "-o=OneDrive",
+                        "-o=/users/Guest" (/ is from HD root if permission!),
+                        "-out_path=~" (~ means directly on HOME root).
+                        "BearNotes" will be always be added to path for
+                        security reasons.
+  -l [LOGGING], --logging [LOGGING]
+                        (Default: True)
+  -s [DO_SYNC], --do_sync [DO_SYNC]
+                        (Default: True) Sync external updates back into Bear
+  -R [RAW_MD], --raw_md [RAW_MD]
+                        (Default: False) Exports without any modification to
+                        the note contents, just like Bear does. This implies
+                        not hiding tags, not adding BearID. Note: This
+                        disables later 'note to note' syncing of modified
+                        contents: sync-back then as a new modified note.
+  -a [INCLUDE_ARCHIVED], --include_archived [INCLUDE_ARCHIVED]
+                        (Default: False) Include archived notes (in
+                        '_Archived' sub folder)
+  -n [ONLY_ARCHIVED], --only_archived [ONLY_ARCHIVED]
+                        (Default: False) Only export archived notes
+```
 
 ## Warning!
 **Please discard versions 1.5.x !**

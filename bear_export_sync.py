@@ -2,55 +2,30 @@
 # python3.6
 # bear_export_sync.py
 
-version = '''
+version_text = '''
 bear_export_sync.py - markdown export from Bear sqlite database 
-Version 1.6.3, 2018-11-16 at 23:20 IST - github/rovest, rorves@twitter
-** Please discard versions 1.5.x **
+Version 1.7.0, 2018-11-17 at 16:12 IST - github/rovest, rorves@twitter
 Developed on an MBP with Visual Studio Code with MS Python extension.
-Tested with python 3.6 and Bear 1.6.3 on MacOS 10.14'''
+Tested with python 3.6 and Bear 1.6.3 on MacOS 10.14
+'''
 
 help_text = '''
-*** If no arguments, this help is displayed. (Use '-d' for internal defaults only)
-    all arguments separated by one space! (No joining like: -rma allowed)
-    -h  display this Help text.
-    -v  Version info displayed.
-    -d  run with Default settings (as in earlier versions), use no other arguments.
-    -o  export Out path as next argument! Examples:
-        -o MyExports (if no leading '/' it will be placed on HOME-folder)
-        -o "/users/Guest" (make sure you have permission if not on HOME)
-        -o ~  (tilde only = 'BearNotes' folder directly on HOME root)
-        enclose in " " if spaces in path! (Default: '~/Dropbox/BearNotes')
-        PS. 'BearNotes' will always be added to path for security reasons!  
-    -t  Tags to be exported, as comma separated list of tags in next argument:
-            -t mytag,travelinfo,memos,writings
-            enclose list in " " if any spaces: 
-            -t "My Essay/in edit,Travel Info,memos/my medical"
-    -x  tags to be eXcluded as comma separated list in next argument:
-            -x health,private,secret
-            use either -e or -t, not both!
-    -r  force Run - runs even if no changes in db since last run.
-    -p  export as regular markdown files, but with links to images and files 
-        that are copied to a rePository (not textbundles) in two folders: 
-        'BearAssetsImages' and 'BearAssetsFiles' on the root of export_path.
-    -R  export all notes in Raw format as Bear does, no changes to md formatting,
-        use with -b to export as plain markdown without images or files.
-
-*** The following functions are ON by default, use these swithces to turn them OFF:
-    -s  do not Sync changes back to Bear - export only.
-    -u  do not use _Untagged folder: put untagged notes flat on root.
-    -f  do not make tag Folders: all notes flat on root.
-    -m  do not export same note to Multiple tag folders: only use first tag in note.
-    -c  do not hide tags in html Comments: `<!-- #mytag -->`, but just plain `#mytag`
-    -a  do not include Archived notes (under '_Archived' sub folder)
-    -i  do not Include file attachments.
-    -b  du not export as textBundles: all notes as regular markdown, no images or files.
-    -y  do not export as hYbrid: all notes will be exported as textbundles even if no images.
-    -l  do not write to Log-file.
-    -w  export Without tags: All tags are stripped from text.
+*** Run with "-h" to display help on all functions and argument switches.
+*** If no arguments: script runs with internal defaults.
+*** If switches are used alone, like: '-b', it will toggle default value.
+*** Or use like this: '-b=false', '-b=0', '--text_bundle=false', '-b=true' to set explicit value.
+*** Use either short form: '-b' or long form: '--text_bundle'
+*** Also use '=' for input strings: '--out_path=OneDrive' or '-o=Box'
+*** Multi values as CSV list: "--exclude_tags=private,banking,old stuff,stupid ideas"
+*** NOTE: Enclose whole argument in " " if any spaces in tags or out_path
 '''
 
 '''
 =================================================================================================
+Updated 2018-11-17
+    - Refactored code: Now using the 'argparse' library instead of clunky, home-made CLI function. 
+    Thanks to @motin for that pull-request and code suggestion :)
+
 Updated 2018-11-16
     - Fixed: tags getting HTML comment in code-blocks
     - Fixed: tags or tag-like code, in codeblocks no longer exported in folders
@@ -70,8 +45,8 @@ Updated 2018-11-13
     - Added command line argument help and switches.
 
 Updated 2018-11-12 
-    - Added export of file attachments (when 'export_as_textbundles = True')
-    - All untagged notes are now exported to '_Untagged' folder if 'make_tag_folders = True'
+    - Added export of file attachments (when 'as_textbundles = True')
+    - All untagged notes are now exported to '_Untagged' folder if 'tag_folders = True'
     - Added choice for exporting with or without archived notes, or only archived.
     - Fixed escaping of spaces for sync import back to Bear.
     - Fixed multiple copying if same tag is repeated in same note. Case sensitive though!
@@ -101,8 +76,8 @@ Then exporting Markdown from Bear sqlite db.
   and synced by Dropbox (or other sync services)
 * "Hides" tags with `period+space` on beginning of line: `. #tag` not appear as H1 in other apps.   
   (This is removed if sync-back above)
-* Or instead hide tags in HTML comment blocks like: `<!-- #mytag -->` if `hide_tags_in_comment_block = True`
-* Makes subfolders named with first tag in note if `make_tag_folders = True`
+* Or instead hide tags in HTML comment blocks like: `<!-- #mytag -->` if `tags_commented = True`
+* Makes subfolders named with first tag in note if `tag_folders = True`
 * Files can now be copied to multiple tag-folders if `multi_tags = True`
 * Export can now be restricted to a list of spesific tags: `limit_export_to_tags = ['bear/github', 'writings']`  
 or leave list empty for all notes: `limit_export_to_tags = []`
@@ -110,41 +85,121 @@ or leave list empty for all notes: `limit_export_to_tags = []`
 * Or export as textbundles with images included 
 '''
 
-make_tag_folders = True  # Exports to folders using first tag only, if `multi_tag_folders = False`
-untagged_folder_name = '_Untagged'  # Only works if 'make_tag_folders = True'
-                                    # If empty: untagged notes are exported to root-folder.
-multi_tag_folders = True  # Copies notes to all 'tag-paths' found in note!
-                          # Only active if `make_tag_folders = True`
-hide_tags_in_comment_block = True  # Hide tags in HTML comments: `<!-- #mytag -->`
-export_without_tags = False
-do_not_log = False
+import argparse
+import sys
 
-# The following two lists are more or less mutually exclusive, so use only one of them.
-# (You can use both if you have some nested tags where that makes sense)
-# Also, they only work if `make_tag_folders = True`.
-only_export_these_tags = []  # Leave this list empty for all notes! See below for sample
-# only_export_these_tags = ['bear/github', 'writings'] 
-no_export_tags = []  # If a tag in note matches one in this list, it will not be exported.
-# no_export_tags = ['private', '.inbox', 'love letters', 'banking']
+if '-d' in sys.argv and len(sys.argv) > 2:
+    print('\n*** Argument "-d" is for default run and can only be used alone\n')
+    sys.argv[1] = '-h'
+elif '-h' in sys.argv:
+    print(version_text)
+    print(help_text)
 
-include_archived = True  # Archived included under '_Archived' sub folder (only works if 'only_archived = False')
-only_archived = False  # Exports only archived notes
 
-export_as_textbundles = True  # Exports as Textbundles with images included
-export_as_hybrids = True  # Exports as .textbundle only if images included, otherwise as .md
-                          # Only used if `export_as_textbundles = True`
-export_raw = False        # export all notes in Raw format as Bear does, no changes to md formatting.
-export_with_files = True  # Only used if `export_as_textbundles = True`
-                          # Sync/Import back to Bear will loose any externally added file attachments,
-                          # as they are not part of textbundle spec.
-export_image_repository = False  # Export all notes as md but link images to 
-                                 # a common repository exported to: `assets_images_path` 
-                                 # Only used if `export_as_textbundles = False`
-do_sync_back_to_bear = True  # Syncs any changes in exported files back to Bear
-force_run = False
-set_logging_on = True
+def str2bool(v):
+    if v.lower() in ('yes', 'true', 't', 'y', '1', 'on'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0', 'off'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
 
-my_sync_service = 'Dropbox'  # Change 'Dropbox' to 'Box', 'Onedrive' or whatever folder of sync service you want.
+
+parser = argparse.ArgumentParser(description='Markdown export from Bear sqlite database.')
+
+parser.add_argument("-v", "--version", type=str2bool, nargs='?', const=True,
+                    default=False, help="(Default: False) Displays version info.")
+
+parser.add_argument("-d", "--default", type=str2bool, nargs='?', const=True,
+                    default=True, help="(Default: True) Run only with internal defaults. Depreciated (but there for backwards compatibility): Running without any arguments will do the same.")
+
+parser.add_argument("-r", "--force_run", type=str2bool, nargs='?', const=True,
+                    default=False, help="(Default: False) Runs even if no changes in db since last run.")
+
+parser.add_argument("-f", "--tag_folders", type=str2bool, nargs='?', const=False,
+                    default=True, help="(Default: True) Exports to folders using first tag only, if `multi_folders = False`")
+
+parser.add_argument("-m", "--multi_folders", type=str2bool, nargs='?', const=False,
+                    default=True, help="(Default: True) Copies notes to all 'tag-paths' found in note! Only active if `tag_folders = True`")
+
+parser.add_argument("-u", "--untagged_folder_name", nargs='?', const="",
+                     default="_Untagged", help="(Default: '_Untagged') If empty, untagged notes exports to root-folder.")
+
+parser.add_argument("-c", "--tags_commented", type=str2bool, nargs='?', const=False,
+                    default=True, help="(Default: True) Hide tags in HTML comments: `<!-- #mytag -->`")
+
+parser.add_argument("-w", "--without_tags", type=str2bool, nargs='?', const=True,
+                    default=False, help="(Default: False) Remove all tags from exported notes.")
+
+parser.add_argument("-t", "--include_tags", nargs='?',
+                     default="", help="(Default: '' all notes included) Example: \"--include_tags=bear,writings'\", '-t=b' (all tags beginning with 'b'). Comma separated list of tags in notes, only matching notes will be exported. Works only if `tag_folders = True`.")
+
+parser.add_argument("-x", "--exclude_tags", nargs='?',
+                    default="", help="(Default: '' no notes excluded) Example: \"--exclude_tags=private,.inbox,love letters,banking'\", '-x=.' (exclude all tags with leading '.') If a tag in note matches one in this list, it will not be exported.")
+
+parser.add_argument("-b", "--as_textbundles", type=str2bool, nargs='?', const=False,
+                    default=True, help="(Default: True) Exports all notes as Textbundles, also when no images in note")
+
+parser.add_argument("-y", "--as_hybrids", type=str2bool, nargs='?', const=False,
+                    default=True, help="(Default: True) Exports as .textbundle only if images included, otherwise as .md. Only used if `as_textbundles = True`")
+
+parser.add_argument("-i", "--include_files", type=str2bool, nargs='?', const=False,
+                    default=True, help="(Default: True) Include file attachments. Only used if 'as_textbundles' or 'repositories' = True")
+
+parser.add_argument("-p", "--repositories", type=str2bool, nargs='?', const=True,
+                    default=False, help="(Default: True) Export all notes as md but link images and files to common repositories. Only used if `as_textbundles = False`")
+
+parser.add_argument("-o", "--out_path", nargs='?', const="Dropbox",
+                    default="Dropbox", help='(Default: Dropbox) Examples: "-o=OneDrive", "-o=/users/Guest" (/ is from HD root if permission!), "-out_path=~" (~ means directly on HOME root). "BearNotes" will be always be added to path for security reasons.')
+
+parser.add_argument("-l", "--logging", type=str2bool, nargs='?', const=False,
+                    default=True, help="(Default: True)")
+
+parser.add_argument("-s", "--do_sync", type=str2bool, nargs='?', const=False,
+                    default=True, help="(Default: True) Sync external updates back into Bear")
+
+parser.add_argument("-R", "--raw_md", type=str2bool, nargs='?', const=True,
+                    default=False, help=("(Default: False) Exports without any modification to the note contents, "
+                                         + "just like Bear does. This implies not hiding tags, not adding BearID. "
+                                         + "Note: This disables later 'note to note' syncing of modified contents: sync-back then as a new modified note."))
+
+parser.add_argument("-a", "--include_archived", type=str2bool, nargs='?', const=True,
+                    default=False, help="(Default: False) Include archived notes (in '_Archived' sub folder)")
+
+parser.add_argument("-n", "--only_archived", type=str2bool, nargs='?', const=True,
+                    default=False, help="(Default: False) Only export archived notes")
+
+args = parser.parse_args()
+
+print(args)
+
+if args.version:
+    print(version_text)
+    quit()
+
+force_run = args.force_run
+tag_folders = args.tag_folders
+multi_folders = args.multi_folders
+untagged_folder_name = args.untagged_folder_name
+tags_commented = args.tags_commented
+without_tags = args.without_tags
+if args.include_tags != '':
+    include_tags = args.include_tags.split(',')  # CSV string converted to list here
+else:
+    include_tags = []
+if args.exclude_tags != '':
+    exclude_tags = args.exclude_tags.split(',')  # CSV string converted to list here
+else:
+    exclude_tags = []
+as_textbundles = args.as_textbundles
+as_hybrids = args.as_hybrids
+repositories = args.repositories
+out_path = args.out_path
+logging = args.logging
+do_sync = args.do_sync
+raw_md = args.raw_md
+include_archived = args.include_archived  
+only_archived = args.only_archived
 
 # NOTE! Do not change anything below here!!!
 
@@ -157,13 +212,37 @@ import time
 import shutil
 import fnmatch
 import json
-import sys
 import os
 
 HOME = os.getenv('HOME', '')
+
+# NOTE! if 'BearNotes' was not added, all other files in export_path would be deleted!! 
+# So very dangerous if you accidentally used an exsisting path with other files and subfolders!
+if out_path.startswith('/'):
+    export_path = os.path.join(out_path, 'BearNotes')
+elif out_path.startswith('~/'):
+    export_path = os.path.join(HOME, out_path.replace('~/', ''), 'BearNotes')
+elif out_path == '~':
+    # 'BearNotes' folder directly on HOME root.
+    export_path = os.path.join(HOME, 'BearNotes')
+elif out_path.startswith('-') and len(out_path) < 3:
+    # If user accidentally supplied another CLI switch after '-o' instead of 'path name'
+    print('\n*** Wrong argument:', out_path)  # , err_msg1)
+    quit()
+else:
+    export_path = os.path.join(HOME, out_path, 'BearNotes')
+
 # NOTE! if 'BearNotes' is left blank, all other files in my_sync_service will be deleted!! 
-export_path = os.path.join(HOME, my_sync_service, 'BearNotes')
 # NOTE! "export_path" is used for sync-back to Bear, so don't change this variable name!
+
+if HOME + '/BearTemp/' in export_path:
+    print('\n*** This is a reserved folder name, do not use! :', out_path + '\n')
+    quit()
+
+# Testing path permission:
+if not os.path.exists(export_path):
+    print(export_path)
+    os.makedirs(export_path)
 
 bear_db = os.path.join(HOME, 'Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data/database.sqlite')
 temp_path = os.path.join(HOME, 'BearTemp', 'BearExportTemp')  # NOTE! Do not change the "BearExportTemp" folder name!!!
@@ -200,21 +279,19 @@ else:
     
 
 def main():
-    if not check_sysargs():
-        return
-    if export_image_repository:
+    if repositories:
         global assets_images_path, assets_files_path
         assets_images_path = os.path.join(export_path, 'BearAssetsImages')
         assets_files_path = os.path.join(export_path, 'BearAssetsFiles')
     init_gettag_script()
-    if do_sync_back_to_bear:
+    if do_sync:
         sync_md_updates()
     if check_db_modified() or force_run:
         delete_old_temp_files()
         note_count = export_markdown()
         write_time_stamp()
         rsync_files_from_temp(export_path, True)
-        if export_image_repository and not export_as_textbundles:
+        if repositories and not as_textbundles:
             copy_bear_images_and_files()
         # notify('Export completed')
         write_log(str(note_count) + ' notes exported to: ' + export_path)
@@ -225,152 +302,8 @@ def main():
         print(time_stamp, '*** No export needed: nothing modified in Bear since last export')
 
 
-def check_sysargs():
-    global force_run, make_tag_folders, multi_tag_folders, hide_tags_in_comment_block
-    global include_archived, export_as_textbundles, export_as_hybrids, do_sync_back_to_bear
-    global export_with_files, export_image_repository, export_without_tags
-    global export_path, sync_ts_file, export_ts_file_exp, untagged_folder_name
-    global only_export_these_tags, no_export_tags, export_raw, do_not_log
-    arg_count = len(sys.argv) - 1
-    if arg_count == 0:
-        # No arguments supplied: display help:
-        print(version)
-        print(help_text)
-        return False
-    i = 0
-    get_path = False
-    path_ok = True
-    include_tags = False
-    exclude_tags = False
-    time_stamp = datetime.datetime.now().strftime("%Y-%m-%d at %H:%M:%S")
-    print(time_stamp, sys.argv)
-    for arg in sys.argv:
-        if i == 0:
-            i += 1
-            continue
-        if arg == '-d':
-            if arg_count == 1:
-                print('*** Running with default internal settings ...')
-                return True
-        elif arg == '-h':
-            print(version)
-            print(help_text)
-            return False
-        elif arg == '-v':
-            print(version)
-            return False
-        elif get_path:
-            if arg.startswith('/'):
-                export_path = os.path.join(arg, 'BearNotes')
-            elif arg.startswith('~/'):
-                export_path = os.path.join(HOME, arg.replace('~/', ''), 'BearNotes')
-            elif arg == '~':
-                # 'BearNotes' folder directly on HOME root.
-                export_path = os.path.join(HOME, 'BearNotes')
-            elif arg.startswith('-') and len(arg) < 3:
-                # If user accidentally supplied another CLI switch after '-o' instead of 'path name'
-                print('\n*** Wrong argument:', arg, err_msg1)
-                return False
-            else:
-                export_path = os.path.join(HOME, arg, 'BearNotes')
-            if HOME + '/BearTemp/' in export_path:
-                print('\n*** This is a reserved folder name, do not use! :', arg + '\n')
-                return False
-            # NOTE! if 'BearNotes' was not added, all other files in export_path would be deleted!! 
-            # So very dangerous if you accidentally used an exsisting path with other files and subfolders!
-            sync_ts_file = os.path.join(export_path, sync_ts)
-            export_ts_file_exp = os.path.join(export_path, export_ts)
-            get_path = False
-            path_ok = True
-        elif arg == '-r':
-            force_run = True
-        elif arg == '-s':
-            do_sync_back_to_bear = False
-        elif arg == '-u':
-            untagged_folder_name = ''
-        elif arg == '-f':
-            make_tag_folders = False
-        elif arg == '-m':
-            multi_tag_folders = False
-        elif arg == '-c':
-            hide_tags_in_comment_block = False
-        elif arg == '-a':
-            include_archived = False
-        elif arg == '-b':
-            export_as_textbundles = False
-        elif arg == '-y':
-            export_as_hybrids = False
-        elif arg == '-R':
-            export_raw = True            
-        elif arg == '-i':
-            export_with_files = False
-        elif arg == '-p':
-            export_image_repository = True
-            export_as_textbundles = False
-        elif arg == '-o':
-            get_path = True
-        elif arg == '-t':
-            include_tags = True
-        elif arg == '-x':
-            exclude_tags = True
-        elif arg == '-w':
-            export_without_tags = True       
-        elif arg == '-l':
-            do_not_log = True       
-        elif include_tags:
-            if arg[0] in '-~/':
-                print(arg, err_msg2)
-                return False
-            only_export_these_tags = arg.split(',')
-            include_tags = False
-        elif exclude_tags:
-            if arg[0] in '-~/':
-                print(arg, err_msg2)
-                return False
-            no_export_tags = arg.split(',')
-            exclude_tags = False
-        else:
-            print('\n*** Unknown argument! Use with -h for help!\n***')
-            return False
-        i += 1
-    if get_path:
-        print('\n*** Path name missing!', err_msg1)
-        return False
-    if include_tags or exclude_tags:
-        print('\n*** Tag-list missing!', err_msg2)
-        return False
-    if path_ok:
-        if not os.path.exists(export_path):
-            os.makedirs(export_path)
-    return True
-
-err_msg1 = '''
-*** Error in the path name following the '-o' argument!
-        Use at least a 2 char string for path name and not starting with a '-'
-        Examples: 
-
-    -o OneDrive
-    -o "/users/Guest/My Exports"
-    -o ~ ('BearNotes' folder directly on HOME root)
-
-        'BearNotes' will always be added to path for security reasons.
-        Enclose in " " if spaces in path and without leading '/' if on Home-folder
-'''
-
-err_msg2 = '''
-*** Error in tag list argument:
-    -t or -e    
-        Supply tab separated list of tags as next argument!
-        Examples:
-        "My Essay/in edit,Travel Info,memos/medical"
-        health,private,secret
-'''
-
-
 def write_log(message):
-    if do_not_log:
-        return
-    if set_logging_on == True:
+    if logging:
         if not os.path.exists(sync_backup):
             os.makedirs(sync_backup)
         time_stamp = datetime.datetime.now().strftime("%Y-%m-%d at %H:%M:%S")
@@ -414,27 +347,27 @@ def export_markdown():
             # out_path = os.path.join(HOME, 'BearArchive')  # NOTE! Notes deleted from archive will not be deleted here!
         else:
             out_path = temp_path
-        if make_tag_folders:
+        if tag_folders:
             file_list = sub_path_from_tag(out_path, filename, md_text)
         else:
             file_list.append(os.path.join(out_path, filename))
         if file_list:
             cre_dt = dt_conv(creation_date)
             mod_dt = dt_conv(modified)
-            if export_without_tags:
+            if without_tags:
                 md_text = strip_all_tags(md_text)
-            if not export_raw:
-                if not export_without_tags:
+            if not raw_md:
+                if not without_tags:
                     md_text = hide_tags(md_text)
                 md_text += '\n\n<!-- {BearID:' + uuid + '} -->\n'
             for filepath in file_list:
                 note_count += 1
-                if export_as_textbundles:
+                if as_textbundles:
                     if check_image_hybrid(md_text):
                         make_text_bundle(md_text, filepath, mod_dt, cre_dt)                        
                     else:
                         write_file(filepath + '.md', md_text, mod_dt, cre_dt)
-                elif export_image_repository:
+                elif repositories:
                     md_proc_text = process_image_and_file_links(md_text, filepath)
                     write_file(filepath + '.md', md_proc_text, mod_dt, cre_dt)
                 else:
@@ -444,10 +377,10 @@ def export_markdown():
 
 def check_image_hybrid(md_text):
     # Hybrid export: textbundle if note contains images or files, otherwise regular markdown file. 
-    if export_as_hybrids:
+    if as_hybrids:
         if re.search(r'\[image:(.+?)\]', md_text):
             return True
-        elif export_with_files and re.search(r'\[file:(.+?)\]', md_text):
+        elif include_files and re.search(r'\[file:(.+?)\]', md_text):
             return True
         else:
             return False
@@ -487,7 +420,7 @@ def make_text_bundle(md_text, filepath, mod_dt, cre_dt):
     if matches:
         md_text = re.sub(r'\[image:(.+?)/(.+?)\]', r'![](assets/\1_\2)', md_text)
 
-    if export_with_files:
+    if include_files:
         md_text = include_files(md_text, assets)
     write_file(bundle_path + '/text.md', md_text, mod_dt, cre_dt)
     write_file(bundle_path + '/info.json', info, mod_dt, cre_dt)
@@ -540,7 +473,8 @@ def strip_all_tags(md_text):
 
 
 def sub_path_from_tag(temp_path, filename, md_text):
-    if multi_tag_folders:
+    tags = []
+    if multi_folders:
         # Files copied to all tag-folders found in note
         tags = find_all_tags(md_text)
     else:
@@ -548,7 +482,7 @@ def sub_path_from_tag(temp_path, filename, md_text):
         tags = find_first_tag(md_text)
     if len(tags) == 0:
         # No tags found
-        if only_export_these_tags:
+        if include_tags:
             return []
         if untagged_folder_name == '':
             # copy to root level only
@@ -560,15 +494,16 @@ def sub_path_from_tag(temp_path, filename, md_text):
     for tag in tags:
         if tag == '/':
             continue
-        if only_export_these_tags:
+        if include_tags:
             export = False
-            for export_tag in only_export_these_tags:
+            for export_tag in include_tags:
+                # Uses '.startswith' to include nested tags:
                 if tag.lower().startswith(export_tag.lower()):
                     export = True
                     break
             if not export:
                 continue
-        for no_tag in no_export_tags:
+        for no_tag in exclude_tags:
             if tag.lower().startswith(no_tag.lower()):
                 return []
         if tag.startswith('.'):
@@ -645,7 +580,7 @@ def process_image_and_file_links(md_text, filepath):
         if ' ' in file:
             md_text = md_text.replace('BearAssetsImages/' + file + ')', 'BearAssetsImages/' + file.replace(' ', '%20') + ')')
 
-    if export_with_files:
+    if include_files:
         md_text = re.sub(r'\[file:(.+?)/(.+?)\]', r'[File: \2](' + parent + r'BearAssetsFiles/\1/\2)', md_text)
         matches = re.findall(r'\[File: .+?\]\((\.\./)*BearAssetsFiles/(.*?)\)', md_text)
         for groups in matches:
@@ -660,10 +595,10 @@ def restore_image_links(md_text):
     MD image links restored back to Bear links
     '''
     restored = False
-    if export_as_textbundles and re.search(r'!\[.*?\]\(assets/.+?\)', md_text):
+    if as_textbundles and re.search(r'!\[.*?\]\(assets/.+?\)', md_text):
         md_text = re.sub(r'!\[(.*?)\]\(assets/(.+?)_(.+?)( ".+?")?\) ?', r'[image:\2/\3]\4 \1', md_text)
         restored = True
-    elif export_image_repository and re.search(r'!\[.*?\]\((\.\./)*BearAssetsImages/.+?\)', md_text):
+    elif repositories and re.search(r'!\[.*?\]\((\.\./)*BearAssetsImages/.+?\)', md_text):
         md_text = re.sub(r'!\[\]\((\.\./)*BearAssetsImages/(.+?)\)', r'[image:\2]', md_text)
         restored = True
     if restored:
@@ -680,10 +615,10 @@ def restore_file_links(md_text):
     MD file links restored back to Bear links.
     '''
     restored = False
-    if export_as_textbundles and re.search(r'\[File: .*?\]\(assets/.+?\)', md_text):
+    if as_textbundles and re.search(r'\[File: .*?\]\(assets/.+?\)', md_text):
         md_text = re.sub(r'\[File: (.*?)\]\(assets/(.+?)_(.+?)( ".+?")?\) ?', r'[file:\2/\3]', md_text)
         restored = True
-    elif export_image_repository and re.search(r'\[File: .*?\]\((\.\./)*BearAssetsFiles/.+?\)', md_text):
+    elif repositories and re.search(r'\[File: .*?\]\((\.\./)*BearAssetsFiles/.+?\)', md_text):
         md_text = re.sub(r'\[File: .*?\]\((\.\./)*BearAssetsFiles/(.+?)\)', r'[file:\2]', md_text)
         restored = True
     if restored:
@@ -698,10 +633,10 @@ def restore_file_links(md_text):
 def copy_bear_images_and_files():
     # Images and files copied to common repositories
     # This copies every image or file, regardless of how many notes are exported
-    # Only used if export_image_repository = True.
+    # Only used if repositories = True.
     subprocess.call(['rsync', '-r', '-t', '--delete', 
                     bear_image_path + "/", assets_images_path])
-    if export_with_files:
+    if include_files:
         subprocess.call(['rsync', '-r', '-t', '--delete', 
                         bear_file_path + "/", assets_files_path])
 
@@ -715,7 +650,7 @@ def write_time_stamp():
 
 
 def hide_tags(md_text):
-    if hide_tags_in_comment_block:
+    if tags_commented:
         # hide tags in HTML comment blocks:
         pattern = r'^[ \t]*(\#[\w.].+)'
         pattern2 = r'<!-- \1 -->'
@@ -841,11 +776,11 @@ def rsync_files_from_temp(dest_path, delete):
     if not os.path.exists(dest_path):
         os.makedirs(dest_path)
     if delete:
-        if export_with_files and export_image_repository:
+        if include_files and repositories:
             exclude_assets_files = 'BearAssetsFiles/'
         else:
             exclude_assets_files = ''
-        if export_image_repository:
+        if repositories:
             exclude_assets_images = 'BearAssetsImages/'
         else:
             exclude_assets_images = ''
