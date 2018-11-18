@@ -1,27 +1,35 @@
 # Markdown export and sync of Bear notes
 
-**Version 1.7.1 - 2018-11-17 at 22:06 IST**
+**Version 1.7.2 - 2018-11-18 at 17:15 IST - Updates:**
 
-Update 2018-11-17:
+- Tidied up comments sections and reordered some code lines, but no real code changes.
+
+*Updates 2018-11-17:*
+
 - Refactored code: Now using the 'argparse' library instead of clunky, home-made CLI function.  
-Thanks to @motin for that pull-request and code suggestion :)
+  Thanks to @motin for that pull-request and code suggestion :)
 - Updated shell script sample for easy run with various choices and multiple outputs.
+- Command line argument for sync-back to Bear is now default off for security reasons. 
+  It's also not a toggle, but have to be turned on explicitly with: "-s=1" or "--do_sync=true"
 - **Please see help text below for all input arguments:**
 
-See: [change_log.md](change_log.md) for previous changes.
-See: `bear_export_sync.sh` a sample script on how to use with params and multiple export paths.
+## Related
 
-*Help text when run with "-h" in version 1.7.0:*
+- See: [change_log.md](change_log.md) for previous changes.
+- See: [bear_export_sync.sh](bear_export_sync.sh) a sample script on how to use with params and multiple export paths.
+
+## Help text when run with "-h" in version 1.7.0
+
 ```txt
-2018-11-17 at 22:12:00 ['bear_export_sync.py', '-h']
+2018-11-18 at 17:07:56 ['/Users/roarvestre/Scripts/python/Bear-Markdown-Export/bear_export_sync.py', '-h']
 usage: bear_export_sync.py [-h] [-v [VERSION]] [-d [DEFAULT]] [-o [OUT_PATH]]
-                           [-r [FORCE_RUN]] [-f [TAG_FOLDERS]]
+                           [-s [DO_SYNC]] [-r [FORCE_RUN]] [-f [TAG_FOLDERS]]
                            [-m [MULTI_FOLDERS]] [-u [UNTAGGED_FOLDER_NAME]]
                            [-t [INCLUDE_TAGS]] [-x [EXCLUDE_TAGS]]
                            [-c [TAGS_COMMENTED]] [-w [WITHOUT_TAGS]]
                            [-b [AS_TEXTBUNDLE]] [-y [AS_HYBRIDS]]
                            [-i [INCLUDE_FILES]] [-p [REPOSITORIES]]
-                           [-l [LOGGING]] [-s [DO_SYNC]] [-R [RAW_MD]]
+                           [-l [LOGGING]] [-R [RAW_MD]]
                            [-a [INCLUDE_ARCHIVED]] [-n [ONLY_ARCHIVED]]
 
 Markdown export from Bear sqlite database.
@@ -41,9 +49,13 @@ optional arguments:
                         permission!), "-out_path=~" (~ means directly on HOME
                         root). "BearNotes" will be always be added to path for
                         security reasons.
+  -s [DO_SYNC], --do_sync [DO_SYNC]
+                        (Default: False) Sync external updates back into Bear.
+                        NOTE: This is not a toggle, turn on explicitly with:
+                        "-s=1" or "--do_sync=true"
   -r [FORCE_RUN], --force_run [FORCE_RUN]
-                        (Default: False) Runs even if no changes in db since
-                        last run.
+                        (Default: False) Runs even if no changes in Bear-db
+                        since last run.
   -f [TAG_FOLDERS], --tag_folders [TAG_FOLDERS]
                         (Default: True) Exports to folders using first tag
                         only, if `multi_folders = False`
@@ -88,10 +100,6 @@ optional arguments:
                         'as_textbundle' to False
   -l [LOGGING], --logging [LOGGING]
                         (Default: True)
-  -s [DO_SYNC], --do_sync [DO_SYNC]
-                        (Default: False) Sync external updates back into Bear.
-                        Note: This is not a toggle, turn on explicitly with:
-                        "-s=1" or "--do_sync=true"
   -R [RAW_MD], --raw_md [RAW_MD]
                         (Default: False) Exports without any modification to
                         the note contents, just like Bear does. This implies
@@ -105,6 +113,8 @@ optional arguments:
   -n [ONLY_ARCHIVED], --only_archived [ONLY_ARCHIVED]
                         (Default: False) Use to only export archived notes
 ```
+
+## Description
 
 Python script for export and roundtrip sync of Bear's notes to OneDrive, Dropbox, etc. and edit online with [StackEdit](https://stackedit.io/app), or use a markdown editor like *Typora* on Windows or a suitable app on Android. Remote edits and new notes get synced back into Bear with this script.
 
@@ -145,40 +155,41 @@ Run script manually or add it to a cron job for automatic syncing (every 5 – 1
 See: [bear_export_sync.sh](bear_export_sync.sh) script for how to use.
 
 ### Syncs external edits back into Bear
+
 Script first checks for external edits in Markdown files or textbundles (previously exported from Bear as described below):
 
-* It replaces text in original note with `bear://x-callback-url/add-text?mode=replace` command   
-(That way keeping original note ID and creation date)  
-If any changes to title, new title will be added just below original title.  
-(`mode=replace` does not replace title)
-* Original note in `sqlite` database and external edit are both backed up as markdown-files to BearSyncBackup folder before import to bear.
-* If a sync conflict, both original and new version will be in Bear (the new one with a sync conflict message and link to original).
-* New notes created online, are just added to Bear  
-(with the `bear://x-callback-url/create` command)
-* If a textbundle gets new images from an external app, it will be opened and imported as a new note in Bear, with message and link to original note.  
-(The `subprocess.call(['open', '-a', '/applications/bear.app', bundle])` command is used for this)
+- It replaces text in original note with `bear://x-callback-url/add-text?mode=replace` command   
+  (That way keeping original note ID and creation date)  
+  If any changes to title, new title will be added just below original title.  
+  (`mode=replace` does not replace title)
+- Original note in `sqlite` database and external edit are both backed up as markdown-files to BearSyncBackup folder before import to bear.
+- If a sync conflict, both original and new version will be in Bear (the new one with a sync conflict message and link to original).
+- New notes created online, are just added to Bear (with the `bear://x-callback-url/create` command)
+- If a textbundle gets new images from an external app, it will be opened and imported as a new note in Bear, with message and link to original note.
+  (The `subprocess.call(['open', '-a', '/applications/bear.app', bundle])` command is used for this)
 
 ### Markdown export to Dropbox, OneDrive, or other:
+
 Then exports all notes from Bear's database.sqlite as plain markdown files:
 
-* Checks modified timestamp on database.sqlite, so exports only when needed.
-* Sets Bear note's modification date on exported markdown files.
-* Appends Bear note's creation date to filename to avoid “title-filename-collisions”
-* Note IDs are included at bottom of markdown files to match original note on sync back:  
-	{BearID:730A5BD2-0245-4EF7-BE16-A5217468DF0E-33519-0000429ADFD9221A}  
-(these ID's are striped off again when synced back into Bear)
-* Uses rsync for copying (from a temp folder), so only changed notes will be synced to Dropbox (or other sync services)
-* rsync also takes care of deleting trashed notes
-* "Hides” tags from being displayed as H1 in other markdown apps by adding `period+space` in front of first tag on a line:   
-`. #bear #idea #python`   
-* Or hide tags in HTML comment blocks like: `<!-- #mytag -->` if `hide_tags_in_comment_block = True`   
-(these are striped off again when synced back into Bear)
-* Makes subfolders named with first tag in note if `make_tag_folders = True`
-* Files can now be copied to multiple tag-folders if `multi_tags = True`
-* Export can now be restricted to a list of spesific tags: `limit_export_to_tags = ['bear/github', 'writings']`  
-or leave list empty for all notes: `limit_export_to_tags = []`
-* Can export and link to images in common image repository
-* Or export as textbundles with images included 
+- Checks modified timestamp on database.sqlite, so exports only when needed.
+- Sets Bear note's modification date on exported markdown files.
+- Appends Bear note's creation date to filename to avoid “title-filename-collisions”
+- Note IDs are included at bottom of markdown files to match original note on sync back:  
+  {BearID:730A5BD2-0245-4EF7-BE16-A5217468DF0E-33519-0000429ADFD9221A}  
+  (these ID's are striped off again when synced back into Bear)
+- Uses rsync for copying (from a temp folder), so only changed notes will be synced to Dropbox (or other sync services)
+- rsync also takes care of deleting trashed notes
+- "Hides” tags from being displayed as H1 in other markdown apps by adding `period+space` in front of first tag on a line:
+  `. #bear #idea #python`   
+- Or hide tags in HTML comment blocks like: `<!-- #mytag -->` if `hide_tags_in_comment_block = True`   
+  (these are striped off again when synced back into Bear)
+- Makes subfolders named with first tag in note if `make_tag_folders = True`
+- Files can now be copied to multiple tag-folders if `multi_tags = True`
+- Export can now be restricted to a list of spesific tags: `limit_export_to_tags = ['bear/github', 'writings']`  
+  or leave list empty for all notes: `limit_export_to_tags = []`
+- Can export and link to images in common image repository
+- Or export as textbundles with images included 
 
 You have Bear on Mac but also want your notes on your Android phone, on Linux or Windows machine at your office. Or you want them available online in a browser from any desktop computer. Here is a solution (or call it workaround) for now, until Bear comes with an online, Windows, or Android solution ;)
 

@@ -4,7 +4,7 @@
 
 version_text = '''
 bear_export_sync.py - markdown export from Bear sqlite database 
-Version 1.7.1 - 2018-11-17 at 22:06 IST - github/rovest - rorves@twitter
+Version 1.7.2 - 2018-11-18 at 17:15 IST - github/rovest - rorves@twitter
 Developed on an MBP with Visual Studio Code with MS Python extension.
 Tested with python 3.6 and Bear 1.6.3 on MacOS 10.14
 '''
@@ -24,41 +24,45 @@ help_text = '''
 
 '''
 =================================================================================================
-Updated 2018-11-17
+Updates 2018-11-18:
+    - Tidied up comments sections and reordered some code lines, but no real code changes.
+
+Updates 2018-11-17:
     - Refactored code: Now using the 'argparse' library instead of clunky, home-made CLI function. 
     Special thanks to @motin for pull-requests and code suggestions :)
     - Changed '--do_sync' default to False and not toggle, to avoid unindended sync for new users.
 
-Updated 2018-11-16
+Updates 2018-11-16:
     - Fixed: tags getting HTML comment in code-blocks
     - Fixed: tags or tag-like code, in codeblocks no longer exported in folders
     - Simplified code in function: 'sub_path_from_tag()' used above
 
-Updated 2018-11-15
+Updates 2018-11-15:
     - Cleaning up code
     - Bug fixes
     - Added argument: '-l' do not write to Log-file.
     - Added function and argument: '-w' export Without tags: All tags are stripped from text.
 
-Updated 2018-11-14 
+Updates 2018-11-14:
     - Added command line arguments: -R for 'RAW' markdown export, and -s for no Sync.
     - Included some other improvements from pull requests.
 
-Updated 2018-11-13 
+Updates 2018-11-13: 
     - Added command line argument help and switches.
 
-Updated 2018-11-12 
+Updates 2018-11-12:
     - Added export of file attachments (when 'as_textbundle = True')
     - All untagged notes are now exported to '_Untagged' folder if 'tag_folders = True'
     - Added choice for exporting with or without archived notes, or only archived.
     - Fixed escaping of spaces for sync import back to Bear.
     - Fixed multiple copying if same tag is repeated in same note. Case sensitive though!
 
-Updated 2018-10-30 
+Updates 2018-10-30: 
     - Uses newer rsync from Carbon Copy Cloner (if present) to preserve file-creation-time.  
     - Fixed escaping of spaces in image names from iPhone camera taken directly in Bear.
 
-Updated 2018-10-17 with new Bear path: 'Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data'
+Updates 2018-10-17: 
+    - New Bear DB path: 'Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data'
 
 See also: bear_import.py for auto import to bear script.
 
@@ -136,8 +140,12 @@ parser.add_argument("-o", "--out_path", nargs='?', const="Dropbox", default="Dro
                         + '"-out_path=~" (~ means directly on HOME root). '
                         + '"BearNotes" will be always be added to path for security reasons.')
 
+parser.add_argument("-s", "--do_sync", type=str2bool, nargs='?', const=False, default=False, 
+                    help="(Default: False) Sync external updates back into Bear. "
+                        + 'Note: This is not a toggle, turn on explicitly with: "-s=1" or "--do_sync=true"')
+
 parser.add_argument("-r", "--force_run", type=str2bool, nargs='?', const=True, default=False, 
-                    help="(Default: False) Runs even if no changes in db since last run.")
+                    help="(Default: False) Runs even if no changes in Bear-db since last run.")
 
 parser.add_argument("-f", "--tag_folders", type=str2bool, nargs='?', const=False, default=True, 
                     help="(Default: True) Exports to folders using first tag only, if `multi_folders = False`")
@@ -181,10 +189,6 @@ parser.add_argument("-p", "--repositories", type=str2bool, nargs='?', const=True
 parser.add_argument("-l", "--logging", type=str2bool, nargs='?', const=False, default=True, 
                     help="(Default: True)")
 
-parser.add_argument("-s", "--do_sync", type=str2bool, nargs='?', const=False, default=False, 
-                    help="(Default: False) Sync external updates back into Bear. "
-                        + 'Note: This is not a toggle, turn on explicitly with: "-s=1" or "--do_sync=true"')
-
 parser.add_argument("-R", "--raw_md", type=str2bool, nargs='?', const=True, default=False, 
                     help="(Default: False) Exports without any modification to the note contents, "
                         + "just like Bear does. This implies not hiding tags, not adding BearID. "
@@ -203,8 +207,8 @@ if args.version:
     print(version_text)
     quit()
 
-print(args)
-
+out_path = args.out_path
+do_sync = args.do_sync
 force_run = args.force_run
 tag_folders = args.tag_folders
 multi_folders = args.multi_folders
@@ -225,19 +229,18 @@ repositories = args.repositories
 if repositories:
     # To avoid having to use two CLI switches:
     as_textbundle = False
-out_path = args.out_path
 logging = args.logging
-do_sync = args.do_sync
 raw_md = args.raw_md
 include_archived = args.include_archived  
 only_archived = args.only_archived
 
-# NOTE! Do not change anything below here!!!
+# NOTE: Do not change anything below here!!!
 
 HOME = os.getenv('HOME', '')
 
-# NOTE! if 'BearNotes' was not added, all other files in export_path would be deleted!! 
+# NOTE: if 'BearNotes' was not added, all other files in export_path would be deleted!! 
 # So could be disastrous if a user accidentally used an exsisting path with other files and subfolders!
+# NOTE: "export_path" is also used for sync-back to Bear, so don't change this variable name!
 if out_path.startswith('/'):
     export_path = os.path.join(out_path, 'BearNotes')
 elif out_path.startswith('~/'):
@@ -252,9 +255,6 @@ elif out_path.startswith('-') and len(out_path) < 3:
 else:
     export_path = os.path.join(HOME, out_path, 'BearNotes')
 
-# NOTE! if 'BearNotes' is left blank, all other files in my_sync_service will be deleted!! 
-# NOTE! "export_path" is used for sync-back to Bear, so don't change this variable name!
-
 if HOME + '/BearTemp/' in export_path:
     print('\n*** This is a reserved folder name, do not use! :', out_path + '\n')
     quit()
@@ -265,7 +265,7 @@ if not os.path.exists(export_path):
     os.makedirs(export_path)
 
 bear_db = os.path.join(HOME, 'Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data/database.sqlite')
-# NOTE! Do not change the "BearExportTemp" folder name below!!!
+# NOTE: Do not change the "BearExportTemp" folder name below!!!
 temp_path = os.path.join(HOME, 'BearTemp', 'BearExportTemp')   
 sync_backup = os.path.join(HOME, 'BearTemp', 'BearSyncBackup') # Used for backup of original notes before sync to Bear.
 log_file = os.path.join(sync_backup, 'bear_export_sync_log.txt')
@@ -275,8 +275,6 @@ bear_image_path = os.path.join(HOME,
         'Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data/Local Files/Note Images')
 bear_file_path = os.path.join(HOME, 
         'Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data/Local Files/Note Files')
-assets_images_path = '' 
-assets_files_path = ''
 
 sync_ts = '.sync-time.log'
 export_ts = '.export-time.log'
@@ -300,21 +298,21 @@ else:
     
 
 def main():
-    if repositories:
-        global assets_images_path, assets_files_path
-        assets_images_path = os.path.join(export_path, 'BearAssetsImages')
-        assets_files_path = os.path.join(export_path, 'BearAssetsFiles')
+    ''' 
+    Main "starting point", everything (exept for CLI handeling, 
+    constants and globals above) starts from here.
+    '''
     init_gettag_script()
     if do_sync:
         sync_md_updates()
     if check_db_modified() or force_run:
         delete_old_temp_files()
+        # Main export from Bear DB here in export_markdown():
         note_count = export_markdown()
         write_time_stamp()
         rsync_files_from_temp(export_path, True)
         if repositories and not as_textbundle:
             copy_bear_images_and_files()
-        # notify('Export completed')
         write_log(str(note_count) + ' notes exported to: ' + export_path)
         time_stamp = datetime.datetime.now().strftime("%Y-%m-%d at %H:%M:%S")
         print(time_stamp + ' - ' + str(note_count) + ' notes exported to: ' + export_path)        
@@ -342,6 +340,11 @@ def check_db_modified():
 
 
 def export_markdown():
+    '''
+    Looping through every note in Bear DB and filtering and exporting according to 
+    CLI arguments: "--include_archived", "--only_archived"
+    Further filtering on tags by calling function: 'sub_path_from_tag()' below
+    '''
     with sqlite3.connect(bear_db) as conn:
         conn.row_factory = sqlite3.Row
         if only_archived:
@@ -397,7 +400,9 @@ def export_markdown():
 
 
 def check_image_hybrid(md_text):
-    # Hybrid export: textbundle if note contains images or files, otherwise regular markdown file. 
+    '''
+    Hybrid export: textbundle if note contains images or files, otherwise regular markdown file. 
+    '''
     if as_hybrids:
         if re.search(r'\[image:(.+?)\]', md_text):
             return True
@@ -470,7 +475,10 @@ def include_files(md_text, assets):
 
 
 def strip_all_tags(md_text):
-    # Removes all tags in note:
+    '''
+    Removes all tags in note using RegEx patterns line by line: 
+    Headings and code-blocks are skipped.
+    '''
     pattern1 = r'(?<!\S)\#([^ \d][\w\/\-]+)[ \n]?(?!([\/ \w\-]+\w[#]))'
     pattern2 = r'(?<![\S])\#([^ \d][.\w\/ \-]+?)\#([ ]|$)'
     code_block = False
@@ -494,6 +502,16 @@ def strip_all_tags(md_text):
 
 
 def sub_path_from_tag(temp_path, filename, md_text):
+    '''
+    This is main engine for exportin and filtering Bear notes export into folders corresponding to tags. 
+    Makes a list of path/paths for each note of tags found, returned to function caller.
+    Also filters accordig to '--include_tags'- list or '--exclude_tags' list.
+    It has two options: 
+    1. Only use first tag in note: Note only exported once to one tag-named folder.
+       (CLI arguments: "--tag_folders=True" and --multi_folders=False"
+    2. Multi tags: Same note copied to multiple tag-named folders according to tags in note, if more thae one.
+       (CLI arguments: "--tag_folders=True" and --multi_folders=True"
+    '''
     tags = []
     if multi_folders:
         # Files copied to all tag-folders found in note
@@ -540,6 +558,11 @@ def sub_path_from_tag(temp_path, filename, md_text):
 
 
 def find_all_tags(md_text):
+    '''
+    Find all tags in note using RegEx patterns line by line: 
+    Headings and code-blocks are skipped. Used for export fildetering
+    when CLI argument "--tag_folders=True" and "--multi_folders=True"
+    '''
     pattern1 = r'(?<!\S)\#([^ \d][\w\/\-]+)[ \n]?(?!([\/ \w\-]+\w[#]))'
     pattern2 = r'(?<![\S])\#([^ \d][.\w\/ \-]+?)\#([ ]|$)'
     pattern_list = (pattern1, pattern2)
@@ -560,6 +583,11 @@ def find_all_tags(md_text):
 
 
 def find_first_tag(md_text):
+    '''
+    Find first tag (only) in note using RegEx patterns line by line: 
+    Headings and code-blocks are skipped. Used for export fildetering
+    when CLI argument "--tag_folders=True" and "--multi_folders=False"
+    '''
     pattern1 = r'(?<!\S)\#([^ \d][\w\/\-]+)[ \n]?(?!([\/ \w\-]+\w[#]))'
     pattern2 = r'(?<![\S])\#([^ \d][.\w\/ \-]+?)\#([ ]|$)'
     code_block = False
@@ -652,9 +680,13 @@ def restore_file_links(md_text):
 
 
 def copy_bear_images_and_files():
-    # Images and files copied to common repositories
-    # This copies every image or file, regardless of how many notes are exported
-    # Only used if repositories = True.
+    '''    
+    Images and files copied to common repositories
+    This copies every image or file, regardless of how many notes are exported
+    Only used if repositories = True.
+    '''
+    assets_images_path = os.path.join(export_path, 'BearAssetsImages')
+    assets_files_path = os.path.join(export_path, 'BearAssetsFiles')
     subprocess.call(['rsync', '-r', '-t', '--delete', 
                     bear_image_path + "/", assets_images_path])
     if include_files:
@@ -663,7 +695,9 @@ def copy_bear_images_and_files():
 
 
 def write_time_stamp():
-    # write to time-stamp.txt file (used during sync)
+    '''
+    write to time-stamp.txt file (used during sync)
+    '''
     write_file(export_ts_file, "Markdown from Bear written at: " +
                datetime.datetime.now().strftime("%Y-%m-%d at %H:%M:%S"), 0, 0)
     write_file(sync_ts_file_temp, "Markdown from Bear written at: " +
@@ -671,12 +705,16 @@ def write_time_stamp():
 
 
 def hide_tags(md_text):
+    '''
+    Hides tags in HTML comment blocks or hides tags from being seen as H1 
+    in some Markdown Editors, by placing `period+space` at start of line.
+    '''
     if tags_commented:
         # hide tags in HTML comment blocks:
         pattern = r'^[ \t]*(\#[\w.].+)'
         pattern2 = r'<!-- \1 -->'
     else:
-        # Hide tags from being seen as H1 (in some Markdown Editors),
+        # Hide tags from being seen as H1 in some Markdown Editors,
         # by placing `period+space` at start of line:
         pattern = r'^[ \t]*(\#[\w.]+)'
         pattern2 = r'. \1'
@@ -702,8 +740,9 @@ def hide_tags(md_text):
 
 
 def restore_tags(md_text):
-    # Tags back to normal Bear tags:
-    # stripping off html comment:
+    '''
+    Tags back to normal Bear tags for sync import, by stripping off html comment tags.
+    '''
     md_text =  re.sub(r'(\n)<!--[ \t]*(\#[\w.].+?) -->', r'\1\2', md_text)
     # stripping off the `period+space` at start of line:
     md_text =  re.sub(r'(\n)\.[ \t]*(\#[\w.]+)', r'\1\2', md_text)
@@ -711,6 +750,9 @@ def restore_tags(md_text):
 
 
 def clean_title(title):
+    '''
+    Make title for filenames 'OS-proof' by replacing illegal (Windows) characters with '-'
+    '''
     title = title[:56].strip()
     if title == "":
         title = "Untitled"
@@ -725,10 +767,12 @@ def write_file(filename, file_content, modified, created):
     if created > 0 and modified > 0:
         os.utime(filename, (-1, created))
         os.utime(filename, (-1, modified))
-        # This way of first setting cre_time and then mod_time with os.utime()
-        # works in current directory (in this case: temp_path).
-        # Older rsync does not preserve file-creation-time,
-        # so use newer rsync v. 3.0.6 from Carbon Copy Cloner with --crtimes switch to preserve cre-time
+        '''
+        This way of first setting cre_time and then mod_time with os.utime()
+        works in current directory (in this case: temp_path).
+        Older rsync does not preserve file-creation-time,
+        so use newer rsync v. 3.0.6 from Carbon Copy Cloner with --crtimes switch to preserve cre-time
+        '''
     elif modified > 0:
         os.utime(filename, (-1, modified))
 
@@ -748,7 +792,9 @@ def get_file_date(filename):
 
 
 def dt_conv(dtnum):
-    # Formula for date offset based on trial and error:
+    '''
+    Formula for date offset, based on trial and error :)
+    '''
     hour = 3600 # seconds
     year = 365.25 * 24 * hour
     offset = year * 31 + hour * 6
@@ -773,10 +819,12 @@ def date_conv(dtnum):
 
 
 def delete_old_temp_files():
-    # Deletes all files in temp folder before new export using "shutil.rmtree()":
-    # NOTE! CAUTION! Do not change this function unless you really know shutil.rmtree() well!
+    '''
+    Deletes all files in temp folder before new export using "shutil.rmtree()":
+    NOTE: CAUTION! Do not change this function unless you really know shutil.rmtree() well!
+    '''
     if os.path.exists(temp_path) and "BearExportTemp" in temp_path:
-        # *** NOTE! Double checking that temp_path folder actually contains "BearExportTemp"
+        # *** NOTE: Double checking that temp_path folder actually contains "BearExportTemp"
         # *** Because if temp_path is accidentally empty or root,
         # *** shutil.rmtree() will delete all files on your complete Hard Drive ;(
         shutil.rmtree(temp_path)
@@ -785,15 +833,16 @@ def delete_old_temp_files():
 
 
 def rsync_files_from_temp(dest_path, delete):
-    # Moves markdown files to new folder using rsync:
-    # This is a very important step! 
-    # By first exporting all Bear notes to an emptied temp folder,
-    # rsync will only update destination if modified or size have changed.
-    # So only changed notes will be synced by Dropbox or OneDrive destinations.
-    # Rsync will also delete notes on destination if deleted in Bear.
-    # So doing it this way saves a lot of otherwise very complex programing.
-    # Thank you very much, Rsync! ;)
-
+    '''
+    Moves markdown files to new folder using rsync:
+    This is a very important step! 
+    By first exporting all Bear notes to an emptied temp folder,
+    rsync will only update destination if modified or size have changed.
+    So only changed notes will be synced by Dropbox or OneDrive destinations.
+    Rsync will also delete notes on destination if deleted in Bear.
+    So doing it this way saves a lot of otherwise very complex programing.
+    Thank you very much, Rsync! ;)
+    '''
     if not os.path.exists(dest_path):
         os.makedirs(dest_path)
     if delete:
@@ -952,7 +1001,9 @@ def update_bear_note(md_text, md_file, ts, ts_last_export):
 
 
 def get_tag_from_path(md_text, md_file, root_path, inbox_for_root=True, extra_tag=''):
-    # extra_tag should be passed as '#tag' or '#space tag#'
+    '''
+    extra_tag should be passed as '#tag' or '#space tag#'
+    '''
     path = md_file.replace(root_path, '')[1:]
     sub_path = os.path.split(path)[0]
     tags = []
@@ -981,6 +1032,9 @@ def get_tag_from_path(md_text, md_file, root_path, inbox_for_root=True, extra_ta
 
 
 def get_file_tags(md_file):
+    '''
+    Gets MacOS file system tags. (Also used by Ulysses for keywords in external folders)
+    '''
     try:
         subprocess.call([gettag_sh, md_file, gettag_txt])
         text = re.sub(r'\\n\d{1,2}', r'', read_file(gettag_txt))
@@ -995,15 +1049,6 @@ def bear_x_callback(x_command, md_text, message, orig_title):
         lines = md_text.splitlines()
         lines.insert(1, message)
         md_text = '\n'.join(lines)
-    ## 2018-02-23 at 22:41: 
-    ## Using new `/add-text` mode: `replace_all` including changes to title.
-    # if orig_title != '':
-    #     lines = md_text.splitlines()
-    #     title = re.sub(r'^#+ ', r'', lines[0])
-    #     if title != orig_title:
-    #         md_text = '\n'.join(lines)
-    #     else:
-    #         md_text = '\n'.join(lines[1:])        
     x_command_text = x_command + '&text=' + urllib.parse.quote(md_text)
     subprocess.call(["open", x_command_text])
     time.sleep(.2)
@@ -1025,7 +1070,9 @@ def check_sync_conflict(uuid, ts_last_export):
 
 
 def backup_bear_note(uuid):
-    # Get single note from Bear sqlite db!
+    '''
+    Gets a single note from Bear sqlite db.
+    '''
     with sqlite3.connect(bear_db) as conn:
         conn.row_factory = sqlite3.Row
         query = "SELECT * FROM `ZSFNOTE` WHERE `ZUNIQUEIDENTIFIER` LIKE '" + uuid + "'"
