@@ -1,5 +1,8 @@
 # Markdown export and sync of Bear notes
 
+**Version 1.7.4 - 2018-11-20 at 21:46 IST - Updates:**
+- Fix on issue #18: emtpy arguments confuses rsync! in 'def rsync_files_from_temp()'
+
 **Version 1.7.2 - 2018-11-18 at 17:15 IST - Updates:**
 
 - Tidied up comments sections and reordered some code lines, but no real code changes.

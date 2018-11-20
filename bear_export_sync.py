@@ -4,7 +4,7 @@
 
 version_text = '''
 bear_export_sync.py - markdown export from Bear sqlite database 
-Version 1.7.3 - 2018-11-20 at 16:59 IST - github/rovest - rorves@twitter
+Version 1.7.4 - 2018-11-20 at 21:46 IST - github/rovest - rorves@twitter
 Developed on an MBP with Visual Studio Code with MS Python extension.
 Tested with python 3.6 and Bear 1.6.3 on MacOS 10.14
 '''
@@ -24,43 +24,37 @@ help_text = '''
 
 '''
 =================================================================================================
+Updates 2018-11-20:
+    - Fix on issue #18: emtpy arguments confuses rsync! in 'def rsync_files_from_temp()'
 Updates 2018-11-18:
     - Tidied up comments sections and reordered some code lines, but no real code changes.
-
 Updates 2018-11-17:
     - Refactored code: Now using the 'argparse' library instead of clunky, home-made CLI function. 
     Special thanks to @motin for pull-requests and code suggestions :)
     - Changed '--do_sync' default to False and not toggle, to avoid unindended sync for new users.
-
 Updates 2018-11-16:
     - Fixed: tags getting HTML comment in code-blocks
     - Fixed: tags or tag-like code, in codeblocks no longer exported in folders
     - Simplified code in function: 'sub_path_from_tag()' used above
-
 Updates 2018-11-15:
     - Cleaning up code
     - Bug fixes
     - Added argument: '-l' do not write to Log-file.
     - Added function and argument: '-w' export Without tags: All tags are stripped from text.
-
 Updates 2018-11-14:
     - Added command line arguments: -R for 'RAW' markdown export, and -s for no Sync.
     - Included some other improvements from pull requests.
-
 Updates 2018-11-13: 
     - Added command line argument help and switches.
-
 Updates 2018-11-12:
     - Added export of file attachments (when 'as_textbundle = True')
     - All untagged notes are now exported to '_Untagged' folder if 'tag_folders = True'
     - Added choice for exporting with or without archived notes, or only archived.
     - Fixed escaping of spaces for sync import back to Bear.
     - Fixed multiple copying if same tag is repeated in same note. Case sensitive though!
-
 Updates 2018-10-30: 
     - Uses newer rsync from Carbon Copy Cloner (if present) to preserve file-creation-time.  
     - Fixed escaping of spaces in image names from iPhone camera taken directly in Bear.
-
 Updates 2018-10-17: 
     - New Bear DB path: 'Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data'
 
@@ -205,7 +199,7 @@ args = parser.parse_args()
 
 if args.version:
     print(version_text)
-    quit()
+    sys.exit(0)
 
 out_path = args.out_path
 do_sync = args.do_sync
@@ -251,13 +245,13 @@ elif out_path == '~':
 elif out_path.startswith('-') and len(out_path) < 3:
     # If user accidentally supplied another CLI switch after '-o' instead of 'path name'
     print('\n*** Wrong value for "-o" argument:', out_path, "\n")
-    quit()
+    sys.exit(1)
 else:
     export_path = os.path.join(HOME, out_path, 'BearNotes')
 
 if HOME + '/BearTemp/' in export_path:
     print('\n*** This is a reserved folder name, do not use! :', out_path + '\n')
-    quit()
+    sys.exit(1)
 
 # Testing path permission:
 if not os.path.exists(export_path):
@@ -860,27 +854,23 @@ def rsync_files_from_temp(dest_path, delete):
     if not os.path.exists(dest_path):
         os.makedirs(dest_path)
     if delete:
-        if include_files and repositories:
-            exclude_assets_files = 'BearAssetsFiles/'
-        else:
-            exclude_assets_files = ''
+        # If newer rsync v. 3.0.6 from Carbon Copy Cloner is installed, 
+        # '--crtimes' is used to preserve cre-time. This is missing in MacOS' rsync. 
+
+        # 2018-11-20: Fix on issue #18: emtpy arguments confuses rsync! (when not using rsync from CCC) 
+        # Thanks to Daniel M. Drucker @dmd for the soludion and this pull request #19 :)
+        # Construct the call: 
+        rsync_call = [rsync_path, '-r', '-t', '--delete', '-q', '--exclude', '.Ulysses*', '--exclude', '*.Ulysses_Public_Filter']
+        if crswitch:
+            rsync_call.extend([crswitch])
         if repositories:
-            exclude_assets_images = 'BearAssetsImages/'
-        else:
-            exclude_assets_images = ''
-        
-        # subprocess.call(['rsync',
-        # Use newer rsync v. 3.0.6 from Carbon Copy Cloner with --crtimes to preserve cre-time
-        subprocess.call([rsync_path, crswitch,
-                            '-r', '-t', '--delete', '-q',
-                            '--exclude', exclude_assets_images,
-                            '--exclude', exclude_assets_files,
-                            '--exclude', '.Ulysses*',
-                            '--exclude', '*.Ulysses_Public_Filter',
-                            temp_path + "/", dest_path])
+            rsync_call.extend(['--exclude', 'BearAssetsImages/'])
+        if repositories and include_files:
+            rsync_call.extend(['--exclude', 'BearAssetsFiles/'])
+        rsync_call.extend([temp_path + '/', dest_path])
+        subprocess.call(rsync_call)
     else:
-        subprocess.call(['rsync', '-r', '-t', '-q',
-                        temp_path + "/", dest_path])
+        subprocess.call(['rsync', '-r', '-t', '-q', temp_path + "/", dest_path])
 
 
 def sync_md_updates():
