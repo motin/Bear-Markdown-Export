@@ -4,7 +4,7 @@
 
 version_text = '''
 bear_export_sync.py - markdown export from Bear sqlite database 
-Version 1.7.2 - 2018-11-18 at 17:15 IST - github/rovest - rorves@twitter
+Version 1.7.3 - 2018-11-20 at 16:59 IST - github/rovest - rorves@twitter
 Developed on an MBP with Visual Studio Code with MS Python extension.
 Tested with python 3.6 and Bear 1.6.3 on MacOS 10.14
 '''
@@ -128,10 +128,10 @@ def str2bool(v):
 parser = argparse.ArgumentParser(description='Markdown export from Bear sqlite database.')
 
 parser.add_argument("-v", "--version", type=str2bool, nargs='?', const=True, default=False, 
-                    help="(Default: False) Displays version info.")
+                    help="Displays version info and exit")
 
 parser.add_argument("-d", "--default", type=str2bool, nargs='?', const=True, default=True, 
-                    help="(Default: True) Run only with internal defaults. Depreciated (but there "
+                    help="(Default: True) Run only with internal defaults. Depreciated (but included "
                         + "for backwards compatibility to 1.6.x): Running without any arguments will do the same.")
 
 parser.add_argument("-o", "--out_path", nargs='?', const="Dropbox", default="Dropbox", 
@@ -227,7 +227,7 @@ as_textbundle = args.as_textbundle
 as_hybrids = args.as_hybrids
 repositories = args.repositories
 if repositories:
-    # To avoid having to use two CLI switches:
+    # To avoid having to use two CLI switches (both "-t" and "-b"):
     as_textbundle = False
 logging = args.logging
 raw_md = args.raw_md
@@ -261,7 +261,7 @@ if HOME + '/BearTemp/' in export_path:
 
 # Testing path permission:
 if not os.path.exists(export_path):
-    print(export_path)
+    print('- New folder:', export_path)
     os.makedirs(export_path)
 
 bear_db = os.path.join(HOME, 'Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data/database.sqlite')
@@ -433,6 +433,10 @@ def make_text_bundle(md_text, filepath, mod_dt, cre_dt):
 
     matches = re.findall(r'\[image:(.+?)\]', md_text)
     for image in matches:
+        if len(image) > 255:
+            print(' - Image name too long, so not included in textbundle/assets:')
+            print(' -', image)
+            continue
         new_name = image.replace('/', '_')
         source = os.path.join(bear_image_path, image)
         target = os.path.join(assets, new_name)
@@ -442,7 +446,7 @@ def make_text_bundle(md_text, filepath, mod_dt, cre_dt):
             if ' ' in image:
                 md_text = md_text.replace('[image:' + image, '[image:' + image.replace(' ', '%20'))
         except:
-            print("File missing:", source)
+            print("- File missing:", source)
     if matches:
         md_text = re.sub(r'\[image:(.+?)/(.+?)\]', r'![](assets/\1_\2)', md_text)
 
@@ -457,13 +461,17 @@ def make_text_bundle(md_text, filepath, mod_dt, cre_dt):
 def include_files(md_text, assets):
     matches = re.findall(r'\[file:(.+?)\]', md_text)
     for file in matches:
+        if len(file) > 255:
+            print(' - File name too long, so not included in textbundle/assets:')
+            print(' -', file)
+            continue
         new_name = file.replace('/', '_')
         source = os.path.join(bear_file_path, file)
         target = os.path.join(assets, new_name)
         try:
             shutil.copy2(source, target)
         except:
-            print("File missing:", source)
+            print("- File missing:", source)
     if matches:
         md_text = re.sub(r'\[file:(.+?)/(.+?)\]', r'[File: \2](assets/\1_\2)', md_text)
         # Escape spaces in filename link:
@@ -682,16 +690,22 @@ def restore_file_links(md_text):
 def copy_bear_images_and_files():
     '''    
     Images and files copied to common repositories
-    This copies every image or file, regardless of how many notes are exported
-    Only used if repositories = True.
+    This copies every image or file, regardless of how many notes are exported.
+    Only used if "--repositories=True" or '-p'  (not used when textbundles)
+    NOTE: Since rsync is used here, only new and changed images/files will be copied.
+    (All images/files are copied only first time)
     '''
     assets_images_path = os.path.join(export_path, 'BearAssetsImages')
-    assets_files_path = os.path.join(export_path, 'BearAssetsFiles')
-    subprocess.call(['rsync', '-r', '-t', '--delete', 
-                    bear_image_path + "/", assets_images_path])
-    if include_files:
+    # Check if the base image path even exists before trying to copy
+    if os.path.exists(assets_images_path):
         subprocess.call(['rsync', '-r', '-t', '--delete', 
-                        bear_file_path + "/", assets_files_path])
+                        bear_image_path + "/", assets_images_path])
+    if include_files:
+        assets_files_path = os.path.join(export_path, 'BearAssetsFiles')
+        # Check if the base image path even exists before trying to copy
+        if os.path.exists(assets_files_path):
+            subprocess.call(['rsync', '-r', '-t', '--delete', 
+                            bear_file_path + "/", assets_files_path])
 
 
 def write_time_stamp():

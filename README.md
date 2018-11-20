@@ -17,8 +17,9 @@
 
 - See: [change_log.md](change_log.md) for previous changes.
 - See: [bear_export_sync.sh](bear_export_sync.sh) a sample script on how to use with params and multiple export paths.
+- Download: [Python 3.7.1 for macOS](https://www.python.org/ftp/python/3.7.1/python-3.7.1-macosx10.9.pkg)
 
-## Help text when run with "-h" in version 1.7.0
+## Help text when run with "-h" in version 1.7.2
 
 ```txt
 2018-11-18 at 17:07:56 ['/Users/roarvestre/Scripts/python/Bear-Markdown-Export/bear_export_sync.py', '-h']
