@@ -8,7 +8,7 @@
 
 #### Version 1.7.5 - 2018-11-21 at 07:48 IST - Updates:
 - Fix on issue #12: hardcoded temp vs temp_path.
-- '~/BearTemp' remamed to '~/BearProc', so '~/BearTemp' and '~/temp' are now obsolete
+- `~/BearTemp` renamed to `~/BearProc`, so `~/BearTemp` and `~/temp` are now obsolete
 
 #### Version 1.7.4 - 2018-11-20 at 21:46 IST - Updates:
 - Fix on issue #18: emtpy arguments confuses rsync! in 'def rsync_files_from_temp()'

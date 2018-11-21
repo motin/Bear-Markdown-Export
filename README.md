@@ -6,7 +6,7 @@
 
 **Version 1.7.5 - 2018-11-21 at 07:48 IST - Updates:**
 - Fix on issue #12: hardcoded temp vs temp_path.
-- '~/BearTemp' is renamed to '~/BearProc', so '~/BearTemp' and '~/temp' are now obsolete.
+- `~/BearTemp` is renamed to `~/BearProc`, so `~/BearTemp` and `~/temp` are now obsolete.
 
 ## Related
 

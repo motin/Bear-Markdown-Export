@@ -24,4 +24,4 @@
 # Run this script manually or add to cron job for automatic syncing (every 5 – 30 minutes, or whatever you prefer)  
 # I recommend LaunchD Task Scheduler:
 # https://itunes.apple.com/us/app/launchd-task-scheduler/id620249105?mt=12
-# Is easy to configure and works very well for this)
+# Is easy to configure and works very well for this.
