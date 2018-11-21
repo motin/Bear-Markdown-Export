@@ -1,8 +1,12 @@
 # Markdown export and sync of Bear notes
 
+**Version 1.7.6 - 2018-11-21 at 11:00 IST - Updates:**
+- Fix: removing empty elements in CSV in '-t=' and '-x=' values.
+- `bear_import_sync.sh` updated to reflect changes
+
 **Version 1.7.5 - 2018-11-21 at 07:48 IST - Updates:**
-- Fix on issue #12: hardcoded temp vs temp_path. 'BearTemp' is now also renamed to 'BearProc' 
-- **Please see help text below for all input arguments:**
+- Fix on issue #12: hardcoded temp vs temp_path.
+- '~/BearTemp' is renamed to '~/BearProc', so '~/BearTemp' and '~/temp' are now obsolete.
 
 ## Related
 

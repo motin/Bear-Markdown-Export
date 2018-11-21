@@ -4,7 +4,7 @@
 
 version_text = '''
 bear_export_sync.py - markdown export from Bear sqlite database 
-Version 1.7.5 - 2018-11-21 at 07:48 IST - github/rovest - rorves@twitter
+Version 1.7.6 - 2018-11-21 at 11:00 IST - github/rovest - rorves@twitter
 Developed on an MBP with Visual Studio Code with MS Python extension.
 Tested with python 3.6 and Bear 1.6.3 on MacOS 10.14
 '''
@@ -25,7 +25,9 @@ help_text = '''
 '''
 =================================================================================================
 Updates 2018-11-21:
+    - Fix: removing empty elements in CSV in '-t=' and '-x=' values.
     - Fix on issue #12: hardcoded temp vs temp_path. 'BearTemp' is now also renamed to 'BearProc' 
+    - '~/BearTemp' remamed to '~/BearProc'. '~/BearTemp' and '~/temp' are now obsolete
 Updates 2018-11-20:
     - Fix on issue #18: emtpy arguments confuses rsync! in 'def rsync_files_from_temp()'
 Updates 2018-11-18:
@@ -212,11 +214,13 @@ untagged_folder_name = args.untagged_folder_name
 tags_commented = args.tags_commented
 without_tags = args.without_tags
 if args.include_tags != '':
-    include_tags = args.include_tags.split(',')  # CSV string converted to list here
+    # CSV string converted to list and stripped for white-space/empty elements.
+    include_tags = list(filter(str.strip, args.include_tags.split(',')))  
 else:
     include_tags = []
 if args.exclude_tags != '':
-    exclude_tags = args.exclude_tags.split(',')  # CSV string converted to list here
+    # CSV string converted to list and stripped for white-space/empty elements.
+    exclude_tags = list(filter(str.strip, args.exclude_tags.split(',')))
 else:
     exclude_tags = []
 as_textbundle = args.as_textbundle

@@ -1,18 +1,22 @@
 #!/bin/bash
 # Sample script:
-# Change paths below to where you want to keep and run these scripts ('~' is shorthand for HOME-folder), 
+# Change paths below to where you keep and run these scripts ('~' is shorthand for HOME-folder), 
 # and change input arguments as needed.
 
 # Run with "-h" for help on input arguments:
 # /usr/local/bin/python3 ~/Bear-Markdown-Export/bear_export_sync.py -h
 
-# To make this shell script executable, run following commands in Terminal (without the leading '# '): 
+# To make this shell script executable, run following commands in Terminal (without the leading '# ' comment tag): 
 # cd ~/Bear-Markdown-Export
 # chmod 755 bear_export_sync.sh
 
-/usr/local/bin/python3 ~/Bear-Markdown-Export/bear_export_sync.py --out_path=Box -a -s -x=private,secret,.shortcuts
-/usr/local/bin/python3 ~/Bear-Markdown-Export/bear_export_sync.py -o=OneDrive -a -s -t=writings,travel,.drafts
-# '-o' or '--out_path' defaults is 'Dropbox' and then argument not needed.
+# NOTE: Mulitiple tags in '-t=' or '-x=' aruments are entered as one CSV string (Comma Separated Values).
+# NOTE: Enclose entire argument in "" if any spaces in path or tags. (See example below)
+/usr/local/bin/python3 ~/Bear-Markdown-Export/bear_export_sync.py -o=OneDrive "-t=writings,travel info,.drafts,health issues"
+/usr/local/bin/python3 ~/Bear-Markdown-Export/bear_export_sync.py --out_path=Box -x=private,secret,.shortcuts
+# '-o' or '--out_path' defaults is 'Dropbox', and then no argument needed.
 
-# Or with run status to log-file. Exaple:
-# /usr/local/bin/python3 ~/Bear-Markdown-Export/bear_export_sync.py -o "Dropbox" -a -s > ~/BearTemp/LaunchD_log1.txt
+# Example with last run status written to a log-file:
+# [ -d ~/BearProc ] || mkdir ~/BearProc
+# /usr/local/bin/python3 ~/Bear-Markdown-Export/bear_export_sync.py -o=OneDrive -t=writings > ~/BearProc/LaunchD_log1.txt
+# /usr/local/bin/python3 ~/Bear-Markdown-Export/bear_export_sync.py -o=Box -x=private >> ~/BearProc/LaunchD_log1.txt
