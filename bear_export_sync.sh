@@ -20,3 +20,8 @@
 # [ -d ~/BearProc ] || mkdir ~/BearProc
 # /usr/local/bin/python3 ~/Bear-Markdown-Export/bear_export_sync.py -o=OneDrive -t=writings > ~/BearProc/LaunchD_log1.txt
 # /usr/local/bin/python3 ~/Bear-Markdown-Export/bear_export_sync.py -o=Box -x=private >> ~/BearProc/LaunchD_log1.txt
+
+# Run this script manually or add to cron job for automatic syncing (every 5 – 30 minutes, or whatever you prefer)  
+# I recommend LaunchD Task Scheduler:
+# https://itunes.apple.com/us/app/launchd-task-scheduler/id620249105?mt=12
+# Is easy to configure and works very well for this)
