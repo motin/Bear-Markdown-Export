@@ -4,7 +4,7 @@
 
 version_text = '''
 bear_export_sync.py - markdown export from Bear sqlite database 
-Version 1.7.4 - 2018-11-20 at 21:46 IST - github/rovest - rorves@twitter
+Version 1.7.5 - 2018-11-21 at 07:48 IST - github/rovest - rorves@twitter
 Developed on an MBP with Visual Studio Code with MS Python extension.
 Tested with python 3.6 and Bear 1.6.3 on MacOS 10.14
 '''
@@ -24,6 +24,8 @@ help_text = '''
 
 '''
 =================================================================================================
+Updates 2018-11-21:
+    - Fix on issue #12: hardcoded temp vs temp_path. 'BearTemp' is now also renamed to 'BearProc' 
 Updates 2018-11-20:
     - Fix on issue #18: emtpy arguments confuses rsync! in 'def rsync_files_from_temp()'
 Updates 2018-11-18:
@@ -260,8 +262,9 @@ if not os.path.exists(export_path):
 
 bear_db = os.path.join(HOME, 'Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear/Application Data/database.sqlite')
 # NOTE: Do not change the "BearExportTemp" folder name below!!!
-temp_path = os.path.join(HOME, 'BearTemp', 'BearExportTemp')   
-sync_backup = os.path.join(HOME, 'BearTemp', 'BearSyncBackup') # Used for backup of original notes before sync to Bear.
+proc_root = os.path.join(HOME, 'BearProc')
+temp_path = os.path.join(proc_root, 'BearExportTemp')
+sync_backup = os.path.join(proc_root, 'BearSyncBackup') # Used for backup of original notes before sync to Bear.
 log_file = os.path.join(sync_backup, 'bear_export_sync_log.txt')
 
 # Paths used in image exports:
@@ -278,8 +281,9 @@ export_ts_file_exp = os.path.join(export_path, export_ts)
 sync_ts_file_temp = os.path.join(temp_path, sync_ts)
 export_ts_file = os.path.join(temp_path, export_ts)
 
-gettag_sh = os.path.join(HOME, 'temp/gettag.sh')
-gettag_txt = os.path.join(HOME, 'temp/gettag.txt')
+sh_path = os.path.join(proc_root, 'sh_scripts')
+gettag_sh = os.path.join(sh_path, 'gettag.sh')
+gettag_txt = os.path.join(sh_path, 'gettag.txt')
 
 # If present, use newer rsync v. 3.0.6 from Carbon Copy Cloner:
 rsync_path = '/Library/Application Support/com.bombich.ccc/Frameworks/CloneKit.framework/Versions/A/rsync'
@@ -296,8 +300,8 @@ def main():
     Main "starting point", everything (exept for CLI handeling, 
     constants and globals above) starts from here.
     '''
-    init_gettag_script()
     if do_sync:
+        init_gettag_script()
         sync_md_updates()
     if check_db_modified() or force_run:
         delete_old_temp_files()
@@ -1126,9 +1130,8 @@ def init_gettag_script():
     JSON="$(xattr -p com.apple.metadata:_kMDItemUserTags "$1" | xxd -r -p | plutil -convert json - -o -)"
     echo $JSON > "$2"
     '''
-    temp = os.path.join(HOME, 'temp')
-    if not os.path.exists(temp):
-        os.makedirs(temp)
+    if not os.path.exists(sh_path):
+        os.makedirs(sh_path)
     write_file(gettag_sh, gettag_script, 0, 0)
     subprocess.call(['chmod', '777', gettag_sh])
     

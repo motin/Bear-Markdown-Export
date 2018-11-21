@@ -1,19 +1,7 @@
 # Markdown export and sync of Bear notes
 
-**Version 1.7.4 - 2018-11-20 at 21:46 IST - Updates:**
-- Fix on issue #18: emtpy arguments confuses rsync! in 'def rsync_files_from_temp()'
-
-**Version 1.7.2 - 2018-11-18 at 17:15 IST - Updates:**
-
-- Tidied up comments sections and reordered some code lines, but no real code changes.
-
-*Updates 2018-11-17:*
-
-- Refactored code: Now using the 'argparse' library instead of clunky, home-made CLI function.  
-  Thanks to @motin for that pull-request and code suggestion :)
-- Updated shell script sample for easy run with various choices and multiple outputs.
-- Command line argument for sync-back to Bear is now default off for security reasons. 
-  It's also not a toggle, but have to be turned on explicitly with: "-s=1" or "--do_sync=true"
+**Version 1.7.5 - 2018-11-21 at 07:48 IST - Updates:**
+- Fix on issue #12: hardcoded temp vs temp_path. 'BearTemp' is now also renamed to 'BearProc' 
 - **Please see help text below for all input arguments:**
 
 ## Related
