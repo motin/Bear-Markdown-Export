@@ -4,7 +4,7 @@
 
 version_text = '''
 bear_export_sync.py - markdown export from Bear sqlite database 
-Version 1.7.6 - 2018-11-21 at 11:00 IST - github/rovest - rorves@twitter
+Version 1.7.7 - 2018-11-27 at 14:45 IST - github/rovest - rorves@twitter
 Developed on an MBP with Visual Studio Code with MS Python extension.
 Tested with python 3.6 and Bear 1.6.3 on MacOS 10.14
 '''
@@ -24,6 +24,13 @@ help_text = '''
 
 '''
 =================================================================================================
+Updates 2018-11-27:
+    - Fix: Did not create `sync_backup` folder for textbundle sync/import. (Thanks to @dmd)
+      This is now created early on in line 280, and creation removed from two other places.
+    - Change: CLI argument: `-s` or `--do_sync` is now a toggle (to be in line with other arguments) 
+      Default is still False.
+    - Added `exist_ok=True` par: `os.makedirs(path, exist_ok=True)` most places and no need for `if os.path.exists(path):`
+
 Updates 2018-11-21:
     - Fix: removing empty elements in CSV in '-t=' and '-x=' values.
     - Fix on issue #12: hardcoded temp vs temp_path. 'BearTemp' is now also renamed to 'BearProc' 
@@ -138,9 +145,9 @@ parser.add_argument("-o", "--out_path", nargs='?', const="Dropbox", default="Dro
                         + '"-out_path=~" (~ means directly on HOME root). '
                         + '"BearNotes" will be always be added to path for security reasons.')
 
-parser.add_argument("-s", "--do_sync", type=str2bool, nargs='?', const=False, default=False, 
-                    help="(Default: False) Sync external updates back into Bear. "
-                        + 'Note: This is not a toggle, turn on explicitly with: "-s=1" or "--do_sync=true"')
+parser.add_argument("-s", "--do_sync", type=str2bool, nargs='?', const=True, default=False, 
+                    help='(Default: False) Sync external updates back into Bear. '
+                        + 'Use "-s", "-s=1", or "--do_sync=true" to turn sync on')
 
 parser.add_argument("-r", "--force_run", type=str2bool, nargs='?', const=True, default=False, 
                     help="(Default: False) Runs even if no changes in Bear-db since last run.")
@@ -268,8 +275,10 @@ bear_db = os.path.join(HOME, 'Library/Group Containers/9K33E3U3T4.net.shinyfrog.
 # NOTE: Do not change the "BearExportTemp" folder name below!!!
 proc_root = os.path.join(HOME, 'BearProc')
 temp_path = os.path.join(proc_root, 'BearExportTemp')
+
 sync_backup = os.path.join(proc_root, 'BearSyncBackup') # Used for backup of original notes before sync to Bear.
 log_file = os.path.join(sync_backup, 'bear_export_sync_log.txt')
+os.makedirs(sync_backup, exist_ok=True)
 
 # Paths used in image exports:
 bear_image_path = os.path.join(HOME, 
@@ -325,8 +334,6 @@ def main():
 
 def write_log(message):
     if logging:
-        if not os.path.exists(sync_backup):
-            os.makedirs(sync_backup)
         time_stamp = datetime.datetime.now().strftime("%Y-%m-%d at %H:%M:%S")
         message = message.replace(export_path + '/', '')
         with open(log_file, 'a', encoding='utf-8') as f:
@@ -421,11 +428,10 @@ def make_text_bundle(md_text, filepath, mod_dt, cre_dt):
     Exports as Textbundles with images included 
     '''
     bundle_path = filepath + '.textbundle'
-    assets = os.path.join(bundle_path, 'assets')    
-    if not os.path.exists(bundle_path):
-        os.makedirs(bundle_path)
-        os.makedirs(assets)
-        
+    assets = os.path.join(bundle_path, 'assets')
+    # Creates both `bundle_path` and `assets` in one step:
+    os.makedirs(assets, exist_ok=True)
+    
     info = '''{
     "transient" : true,
     "type" : "net.daringfireball.markdown",
@@ -561,8 +567,7 @@ def sub_path_from_tag(temp_path, filename, md_text):
         else:
             sub_path = tag    
         tag_path = os.path.join(temp_path, sub_path)
-        if not os.path.exists(tag_path):
-            os.makedirs(tag_path)
+        os.makedirs(tag_path, exist_ok=True)
         paths.append(os.path.join(tag_path, filename))      
     return paths
 
@@ -859,8 +864,7 @@ def rsync_files_from_temp(dest_path, delete):
     So doing it this way saves a lot of otherwise very complex programing.
     Thank you very much, Rsync! ;)
     '''
-    if not os.path.exists(dest_path):
-        os.makedirs(dest_path)
+    os.makedirs(dest_path, exist_ok=True)
     if delete:
         # If newer rsync v. 3.0.6 from Carbon Copy Cloner is installed, 
         # '--crtimes' is used to preserve cre-time. This is missing in MacOS' rsync. 
@@ -1100,8 +1104,6 @@ def backup_bear_note(uuid):
         md_text = insert_link_top_note(md_text, 'Link to updated note: ', uuid)
         dtdate = datetime.datetime.fromtimestamp(cre_dt)
         filename = clean_title(title) + dtdate.strftime(' - %Y-%m-%d_%H%M')
-        if not os.path.exists(sync_backup):
-            os.makedirs(sync_backup)
         file_part = os.path.join(sync_backup, filename) 
         # This is a Bear text file, not exactly markdown.
         backup_file = file_part + ".txt"
@@ -1134,8 +1136,7 @@ def init_gettag_script():
     JSON="$(xattr -p com.apple.metadata:_kMDItemUserTags "$1" | xxd -r -p | plutil -convert json - -o -)"
     echo $JSON > "$2"
     '''
-    if not os.path.exists(sh_path):
-        os.makedirs(sh_path)
+    os.makedirs(sh_path, exist_ok=True)
     write_file(gettag_sh, gettag_script, 0, 0)
     subprocess.call(['chmod', '777', gettag_sh])
     
