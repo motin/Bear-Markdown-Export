@@ -48,8 +48,7 @@ optional arguments:
                         security reasons.
   -s [DO_SYNC], --do_sync [DO_SYNC]
                         (Default: False) Sync external updates back into Bear.
-                        NOTE: This is not a toggle, turn on explicitly with:
-                        "-s=1" or "--do_sync=true"
+                        Use "-s", "-s=1", or "--do_sync=true" to turn sync on
   -r [FORCE_RUN], --force_run [FORCE_RUN]
                         (Default: False) Runs even if no changes in Bear-db
                         since last run.
