@@ -1,12 +1,12 @@
 # Markdown export and sync of Bear notes
 
 #### Version 1.7.7 - 2018-11-27 at 14:45 IST - Updates:
-- Fix: Did not create `sync_backup` folder for textbundle sync/import. (Thanks to @dmd) 
+- Fix: Did not create `sync_backup` folder for textbundle sync/import. (Thanks to @yoramdelangen :) 
     This is now created early on in line 280, and creation removed from two other places.
 - Change: CLI argument: `-s` or `--do_sync` is now a toggle (to be in line with other arguments)  
     Default is still False.
 - Added: `exist_ok=True` to: `os.makedirs(path, exist_ok=True)` most places 
-    and no need for `if os.path.exists(path):`
+    and no need for `if os.path.exists(path):` (Thanks to @dmd :)
 
 
 ## Related
